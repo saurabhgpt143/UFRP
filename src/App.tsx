@@ -54,6 +54,7 @@ const defaultConfig: FRPConfig = {
 export default function App() {
   const [config, setConfig] = useState<FRPConfig>(() => parseConfigFromUrl(defaultConfig));
   const [currentStep, setCurrentStep] = useState<StepNumber>(1);
+  const [activeSubStep, setActiveSubStep] = useState<number>(3);
   const [unrollProgress, setUnrollProgress] = useState<number>(0);
   const [curingProgress, setCuringProgress] = useState<number>(0);
   const [isHeating, setIsHeating] = useState<boolean>(false);
@@ -196,6 +197,7 @@ export default function App() {
   const handleSelectStep = (step: StepNumber) => {
     soundFx.playClick();
     setCurrentStep(step);
+    setActiveSubStep(3);
     if (step >= 3 && unrollProgress < 1) {
       setUnrollProgress(1);
     }
@@ -246,7 +248,12 @@ export default function App() {
         {/* Mobile / Portrait Step Navigation Header */}
         <MobileStepBar
           currentStep={currentStep}
+          activeSubStep={activeSubStep}
           onSelectStep={handleSelectStep}
+          onSelectSubStep={(subStep) => {
+            soundFx.playClick();
+            setActiveSubStep(subStep);
+          }}
           curingProgress={curingProgress}
           config={config}
         />
@@ -255,7 +262,12 @@ export default function App() {
         <div className="w-80 shrink-0 hidden lg:block">
           <StepWorkflow
             currentStep={currentStep}
+            activeSubStep={activeSubStep}
             onSelectStep={handleSelectStep}
+            onSelectSubStep={(subStep) => {
+              soundFx.playClick();
+              setActiveSubStep(subStep);
+            }}
             curingProgress={curingProgress}
             config={config}
           />
@@ -313,6 +325,11 @@ export default function App() {
                   tableSpec={tableSpec}
                   materials={materials}
                   currentStep={currentStep}
+                  activeSubStep={activeSubStep}
+                  onSelectSubStep={(subStep) => {
+                    soundFx.playClick();
+                    setActiveSubStep(subStep);
+                  }}
                   curingProgress={curingProgress}
                   isHeating={isHeating}
                   wireframeMode={wireframeMode}

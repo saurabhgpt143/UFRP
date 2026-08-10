@@ -21,6 +21,10 @@ import {
   generateProductSummaryText,
   generateProductSpecCardCanvas
 } from '../utils/shareUtils';
+import {
+  ReceiptData,
+  generateThermalReceiptCanvas
+} from '../utils/thermalPrinterUtils';
 import { Product3DRenderer } from './Product3DRenderer';
 
 interface ShareProductModalProps {
@@ -37,10 +41,13 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedSpec, setCopiedSpec] = useState<boolean>(false);
   const [copiedImage, setCopiedImage] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'link' | 'image' | 'summary' | 'email'>('image');
+  const [copiedThermalImage, setCopiedThermalImage] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'link' | 'image' | 'summary' | 'email' | 'thermal'>('image');
 
   const [cardDataUrl, setCardDataUrl] = useState<string | null>(null);
   const [cardBlob, setCardBlob] = useState<Blob | null>(null);
+  const [thermalDataUrl, setThermalDataUrl] = useState<string | null>(null);
+  const [thermalBlob, setThermalBlob] = useState<Blob | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const modalContainerRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +55,7 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
   const shareUrl = serializeConfigToUrl(config);
   const specText = generateProductSummaryText(config);
 
-  // Generate Image Card whenever modal opens or tab changes to image
+  // Generate Image Card whenever modal opens or tab changes
   useEffect(() => {
     if (!isOpen) return;
 
@@ -70,7 +77,56 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
       setIsGeneratingImage(false);
     };
 
-    generateCard();
+    const generateThermalCard = async () => {
+      const receiptData: ReceiptData = {
+        batchId: `BATCH-IN-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`,
+        dateStr: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+        timeStr: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+        lineNo: 'Pultrusion Line #02',
+        operatorName: 'Rakesh Kumar (Batch Tech)',
+        profileName: config.profile.toUpperCase().replace(/_/g, ' '),
+        dimensionsStr: `${config.widthMm}W × ${config.lengthMm}L × ${config.thicknessMm}T mm`,
+        colorStr: config.color.toUpperCase().replace(/_/g, ' '),
+        transmittancePercent: materials.lightTransmittancePercent,
+        resinTypeStr: (config.resinType || 'orthophthalic').toUpperCase(),
+        batchScaleLabel: 'SINGLE SHEET',
+        scaleFactor: 1.0,
+        scaledResinKg: materials.totalResinWeightKg,
+        scaledMekpMl: materials.catalystVolumeMl,
+        scaledMekpGrams: materials.catalystVolumeMl * 1.1,
+        catalystPercent: config.catalystPercent,
+        scaledCobaltMl: materials.cobaltVolumeMl,
+        scaledCobaltGrams: materials.cobaltVolumeMl * 0.96,
+        cobaltPercent: config.cobaltPercent ?? 0.2,
+        scaledPigmentGrams: materials.pigmentWeightGrams,
+        pigmentPercent: materials.pigmentPercent,
+        scaledFillerKg: materials.fillerWeightGrams / 1000,
+        scaledFillerGrams: materials.fillerWeightGrams,
+        fillerType: config.fillerType ?? 'None',
+        scaledStyreneGrams: materials.totalResinWeightKg * 1000 * 0.05,
+        scaledUvGrams: materials.totalResinWeightKg * 1000 * 0.005,
+        totalLiquidBatchKg: materials.totalResinWeightKg + (materials.fillerWeightGrams / 1000) + ((materials.catalystVolumeMl * 1.1 + materials.cobaltVolumeMl * 0.96 + materials.pigmentWeightGrams + (materials.totalResinWeightKg * 1000 * 0.05) + (materials.totalResinWeightKg * 1000 * 0.005)) / 1000),
+        scaledGlassKg: materials.totalGlassWeightKg,
+        fiberType: config.fiberType,
+        scaledTotalCompositeKg: materials.totalSheetWeightKg,
+        ambientTempC: materials.ambientTempC,
+        estimatedGelTimeMin: materials.estimatedGelTimeMin,
+        peakExothermTempC: materials.peakExothermTempC,
+        estimatedCostInr: materials.estimatedCostInr,
+        pricePerSqFtInr: materials.pricePerSqFtInr,
+        gstAmountInr: materials.gstAmountInr,
+        totalCostWithGstInr: materials.totalCostWithGstInr,
+        paperWidthMm: '80mm',
+      };
+      const thermalCanvas = await generateThermalReceiptCanvas(receiptData);
+      setThermalDataUrl(thermalCanvas.toDataURL('image/png'));
+      thermalCanvas.toBlob((blob) => {
+        if (blob) setThermalBlob(blob);
+      }, 'image/png');
+    };
+
+    if (activeTab === 'image') generateCard();
+    if (activeTab === 'thermal') generateThermalCard();
   }, [isOpen, config, activeTab]);
 
   if (!isOpen) return null;
@@ -164,6 +220,51 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
+  const handleShareThermalImage = async () => {
+    if (!thermalBlob) return;
+    const file = new File([thermalBlob], `thermal-batch-slip-${config.profile}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: `Thermal Print Batch Slip - ${config.profile.replace(/_/g, ' ')}`,
+          text: `Thermal Receipt Batch Slip Image (${config.widthMm}mm x ${config.lengthMm}mm)`,
+          files: [file],
+        });
+      } catch (err) {
+        console.warn('Thermal share cancelled:', err);
+      }
+    } else {
+      handleDownloadThermalImage();
+    }
+  };
+
+  const handleDownloadThermalImage = () => {
+    if (!thermalDataUrl) return;
+    const a = document.createElement('a');
+    a.href = thermalDataUrl;
+    a.download = `thermal-print-ticket-${config.profile}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleCopyThermalImage = async () => {
+    if (!thermalBlob) return;
+    try {
+      if (navigator.clipboard && 'write' in navigator.clipboard) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': thermalBlob }),
+        ]);
+        setCopiedThermalImage(true);
+        setTimeout(() => setCopiedThermalImage(false), 2500);
+      } else {
+        handleDownloadThermalImage();
+      }
+    } catch (err) {
+      handleDownloadThermalImage();
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -248,6 +349,17 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
             >
               <Mail className="w-4 h-4" />
               <span>Email & Print</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('thermal')}
+              className={`pb-2 px-3 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'thermal'
+                  ? 'border-amber-400 text-amber-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Printer className="w-4 h-4 text-amber-400" />
+              <span>Thermal Print Image</span>
             </button>
           </div>
 
@@ -432,6 +544,73 @@ export const ShareProductModal: React.FC<ShareProductModalProps> = ({
                     </p>
                   </div>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: Thermal Print Image */}
+          {activeTab === 'thermal' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-slate-950 p-2 sm:p-3 rounded-2xl border border-slate-800 flex justify-center items-center relative group overflow-hidden">
+                {thermalDataUrl ? (
+                  <div className="relative max-h-[340px] overflow-y-auto">
+                    <img
+                      src={thermalDataUrl}
+                      alt="Thermal Receipt Batch Slip"
+                      className="w-auto h-auto max-h-[320px] rounded border border-slate-800 shadow-xl object-contain mx-auto"
+                    />
+                    <div className="absolute top-2 right-2 bg-slate-950/80 backdrop-blur px-2 py-1 rounded text-[10px] font-mono text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                      <span>203 DPI Thermal POS Image</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-48 flex flex-col items-center justify-center gap-2 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+                    <span className="text-xs font-mono">Generating thermal receipt ticket image...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Thermal Image Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  onClick={handleShareThermalImage}
+                  disabled={!thermalBlob}
+                  className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 border border-blue-400 shadow-md shadow-blue-600/20 disabled:opacity-50 cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Share Thermal Image</span>
+                </button>
+
+                <button
+                  onClick={handleCopyThermalImage}
+                  disabled={!thermalBlob}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 border disabled:opacity-50 cursor-pointer ${
+                    copiedThermalImage
+                      ? 'bg-emerald-600 text-white border-emerald-400'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  }`}
+                >
+                  {copiedThermalImage ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4 text-cyan-400" />}
+                  <span>{copiedThermalImage ? 'Thermal Image Copied!' : 'Copy to Clipboard'}</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadThermalImage}
+                  disabled={!thermalDataUrl}
+                  className="py-2.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 border border-amber-300 disabled:opacity-50 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Ticket PNG</span>
+                </button>
+              </div>
+
+              <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl flex items-start gap-2 text-xs text-slate-400">
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p>
+                  Share high-density 203 DPI thermal print tickets containing exact batch chemical recipes, catalyst dosing, resin matrix mass, and pot life gel windows directly via device sharing or messaging apps.
+                </p>
               </div>
             </div>
           )}

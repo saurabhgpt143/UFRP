@@ -12,10 +12,13 @@ import {
 } from 'lucide-react';
 import { FRPConfig, StepNumber, WorkflowStep } from '../types';
 import { STEP_ALTERNATIVE_OPTIONS } from '../data/processOptions';
+import { SUB_STEPS_DATA } from '../data/subSteps';
 
 interface StepWorkflowProps {
   currentStep: StepNumber;
+  activeSubStep?: number;
   onSelectStep: (step: StepNumber) => void;
+  onSelectSubStep?: (subStep: number) => void;
   curingProgress: number;
   config?: FRPConfig;
 }
@@ -67,7 +70,9 @@ export const stepsData: WorkflowStep[] = [
 
 export const StepWorkflow: React.FC<StepWorkflowProps> = ({
   currentStep,
+  activeSubStep = 3,
   onSelectStep,
+  onSelectSubStep,
   curingProgress,
   config,
 }) => {
@@ -116,10 +121,18 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
           const activeOpt = stepOptions.find((o) => o.id === selectedMethodId) || stepOptions[0];
 
           return (
-            <button
+            <div
               key={step.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectStep(step.id)}
-              className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-start gap-3 relative group ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectStep(step.id);
+                }
+              }}
+              className={`w-full text-left p-3 rounded-xl border transition-all duration-200 flex items-start gap-3 relative group cursor-pointer ${
                 isActive
                   ? 'bg-gradient-to-r from-blue-900/40 to-slate-800/80 border-blue-500/60 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/40'
                   : isCompleted
@@ -170,6 +183,38 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
                   </div>
                 )}
 
+                {/* Sequential Sub-steps breakdown for active step */}
+                {isActive && SUB_STEPS_DATA[step.id as StepNumber] && (
+                  <div className="mt-2.5 pt-2 border-t border-blue-500/20 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[9px] font-mono font-bold text-blue-400 uppercase tracking-wider">
+                      Sequential Sub-steps
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {SUB_STEPS_DATA[step.id as StepNumber].map((sub) => {
+                        const isSubSel = sub.subStepId === activeSubStep;
+                        return (
+                          <button
+                            key={sub.subStepId}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onSelectSubStep) onSelectSubStep(sub.subStepId);
+                            }}
+                            className={`flex-1 py-0.5 text-[10px] font-mono font-bold rounded transition-all text-center ${
+                              isSubSel
+                                ? 'bg-blue-500 text-white shadow-sm ring-1 ring-blue-300'
+                                : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
+                            }`}
+                            title={sub.title}
+                          >
+                            {step.id}.{sub.subStepId}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Active progress bar if step 5 drying */}
                 {step.id === 5 && currentStep === 5 && (
                   <div className="mt-2 w-full bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800">
@@ -180,7 +225,7 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
                   </div>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -208,7 +253,9 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
 
 export const MobileStepBar: React.FC<StepWorkflowProps> = ({
   currentStep,
+  activeSubStep = 3,
   onSelectStep,
+  onSelectSubStep,
 }) => {
   return (
     <div className="w-full bg-slate-900 border-b border-slate-800 px-3 py-2 flex flex-col gap-1.5 shrink-0 z-10 font-sans lg:hidden">
@@ -251,6 +298,32 @@ export const MobileStepBar: React.FC<StepWorkflowProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Sub-step selector pills for Mobile */}
+      {SUB_STEPS_DATA[currentStep] && (
+        <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-800">
+          <span className="text-[10px] font-mono text-slate-400 shrink-0">Sub-steps:</span>
+          <div className="flex items-center gap-1 flex-1 justify-end">
+            {SUB_STEPS_DATA[currentStep].map((sub) => {
+              const isSubSel = sub.subStepId === activeSubStep;
+              return (
+                <button
+                  key={sub.subStepId}
+                  type="button"
+                  onClick={() => onSelectSubStep && onSelectSubStep(sub.subStepId)}
+                  className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all ${
+                    isSubSel
+                      ? 'bg-blue-500 text-white ring-1 ring-blue-300'
+                      : 'bg-slate-950 text-slate-400 border border-slate-800'
+                  }`}
+                >
+                  {currentStep}.{sub.subStepId}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

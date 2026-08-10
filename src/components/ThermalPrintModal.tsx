@@ -19,7 +19,8 @@ import {
   Image as ImageIcon,
   Cpu,
   Smartphone,
-  Info
+  Info,
+  Share2
 } from 'lucide-react';
 import { FRPConfig } from '../types';
 import {
@@ -158,6 +159,49 @@ export const ThermalPrintModal: React.FC<ThermalPrintModalProps> = ({
 
     setStatusMessage('Downloaded 203 DPI Thermal Receipt Image (PNG)');
     setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  // 4. Share Thermal Print Image via Device Web Share / Clipboard / Download
+  const handleShareThermalImage = async () => {
+    setStatusMessage('Generating thermal receipt image for sharing...');
+    try {
+      const canvas = await generateThermalReceiptCanvas(receiptData);
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setStatusMessage('Failed to generate image');
+          return;
+        }
+        const file = new File([blob], `${batchId}_ThermalReceipt_203DPI.png`, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: `Thermal Print Batch Slip - ${batchId}`,
+              text: `Thermal Batch Slip for ${receiptData.profileName} FRP Sheet (Batch ID: ${batchId})`,
+              files: [file],
+            });
+            setStatusMessage('Shared thermal receipt image successfully!');
+          } catch (err) {
+            console.warn('Share cancelled or failed:', err);
+          }
+        } else if (navigator.clipboard && 'write' in navigator.clipboard) {
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            setStatusMessage('Thermal print image copied to clipboard!');
+          } catch (e) {
+            handleDownloadPngImage();
+          }
+        } else {
+          handleDownloadPngImage();
+        }
+        setTimeout(() => setStatusMessage(null), 3500);
+      }, 'image/png');
+    } catch (err) {
+      console.error('Error sharing thermal print image:', err);
+      setStatusMessage('Error generating thermal receipt image');
+    }
   };
 
   // 4. Format ASCII Text for Clipboard Copy
@@ -385,6 +429,16 @@ QC INSPECTOR   : _______________________
               >
                 <Printer className="w-4 h-4" />
                 <span>{isPrinting ? 'Printing...' : `Print Thermal Ticket (${paperWidthMm})`}</span>
+              </button>
+
+              {/* Share Thermal Print Image */}
+              <button
+                onClick={handleShareThermalImage}
+                className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-blue-600/20 border border-blue-400"
+                title="Share thermal print receipt image via WhatsApp, Mail, Messages, or AirDrop"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Share Thermal Print Image</span>
               </button>
 
               {/* ESC/POS Raw Binary Download */}

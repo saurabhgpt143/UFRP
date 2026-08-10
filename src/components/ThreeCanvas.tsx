@@ -3,12 +3,15 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FRPConfig, MaterialCalculations, StepNumber, TableSpec } from '../types';
 import { getResinHexColor } from '../utils/frpCalculations';
+import { SUB_STEPS_DATA, SubStepInfo } from '../data/subSteps';
 
 interface ThreeCanvasProps {
   config: FRPConfig;
   tableSpec: TableSpec;
   materials: MaterialCalculations;
   currentStep: StepNumber;
+  activeSubStep?: number; // 1, 2, or 3
+  onSelectSubStep?: (subStep: number) => void;
   curingProgress: number; // 0 to 100
   isHeating: boolean;
   wireframeMode: boolean;
@@ -25,6 +28,8 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
   tableSpec,
   materials,
   currentStep,
+  activeSubStep = 3,
+  onSelectSubStep,
   curingProgress,
   isHeating,
   wireframeMode,
@@ -427,7 +432,15 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
     // 3. Lower Mylar Film Sheet (Step 1+)
     if (currentStep >= 1) {
-      const actualUnrollLen = currentStep <= 2 ? totalBedLengthM * unrollProgress : totalBedLengthM;
+      let actualUnrollLen = totalBedLengthM;
+      if (currentStep === 1) {
+        actualUnrollLen = activeSubStep >= 3 ? totalBedLengthM : 0;
+      } else if (currentStep === 2) {
+        if (activeSubStep === 1) actualUnrollLen = totalBedLengthM * 0.25;
+        else if (activeSubStep === 2) actualUnrollLen = totalBedLengthM * 0.65;
+        else actualUnrollLen = totalBedLengthM;
+      }
+
       if (actualUnrollLen > 0.001) {
         const mylarGeo = new THREE.PlaneGeometry(mylarWidthM, actualUnrollLen);
         mylarGeo.rotateX(-Math.PI / 2);
@@ -474,17 +487,20 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       // Flat unformed resin matrix width on Mylar paper (leaves a ~20mm margin on each side of the Mylar paper)
       const flatResinWidthM = mylarWidthM * 0.96;
 
+      // Calculate thickness depending on whether lower 50% resin or full resin coat is applied in sub-steps
+      const currentThicknessM = (currentStep === 3 && activeSubStep === 1) ? thicknessM * 0.5 : thicknessM;
+
       if (currentStep >= 4 && config.profile === 'profile_7v') {
-        sheetGeo = create7vOr6vGeometry(widthM, lengthM, thicknessM, 7);
+        sheetGeo = create7vOr6vGeometry(widthM, lengthM, currentThicknessM, 7);
       } else if (currentStep >= 4 && config.profile === 'profile_6v') {
-        sheetGeo = create7vOr6vGeometry(widthM, lengthM, thicknessM, 6);
+        sheetGeo = create7vOr6vGeometry(widthM, lengthM, currentThicknessM, 6);
       } else if (currentStep >= 4 && config.profile === 'corrugated_sinusoidal') {
-        sheetGeo = createCorrugatedGeometry(widthM, lengthM, thicknessM, 12, 0.03);
+        sheetGeo = createCorrugatedGeometry(widthM, lengthM, currentThicknessM, 12, 0.03);
       } else if (currentStep >= 4 && config.profile === 'trapezoidal_rib') {
-        sheetGeo = createTrapezoidalGeometry(widthM, lengthM, thicknessM, 8, 0.035);
+        sheetGeo = createTrapezoidalGeometry(widthM, lengthM, currentThicknessM, 8, 0.035);
       } else {
         // Flat sheet for Step 3 liquid resin matrix & FiberMat layup on Mylar release paper
-        sheetGeo = new THREE.BoxGeometry(flatResinWidthM, thicknessM, lengthM);
+        sheetGeo = new THREE.BoxGeometry(flatResinWidthM, currentThicknessM, lengthM);
       }
 
       const resinMat = new THREE.MeshPhysicalMaterial({
@@ -498,131 +514,138 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       });
 
       const resinSheet = new THREE.Mesh(sheetGeo, resinMat);
-      resinSheet.position.set(0, tableTopY + 0.005 + thicknessM / 2, 0);
+      resinSheet.position.set(0, tableTopY + 0.005 + currentThicknessM / 2, 0);
       resinSheet.castShadow = true;
       resinSheet.receiveShadow = true;
       resinSheet.name = 'FRP Resin & Fiber Layer';
       scene.add(resinSheet);
       resinSheetRef.current = resinSheet;
 
-      // Embedded Fiberglass Strand Pattern matching resin layup width
-      const fiberWidthM = currentStep >= 4 && config.profile !== 'flat' ? widthM * 0.98 : flatResinWidthM * 0.98;
-      const fiberGeo = new THREE.PlaneGeometry(fiberWidthM, lengthM * 0.98, 20, 40);
-      fiberGeo.rotateX(-Math.PI / 2);
+      // Sub-step 3.2+: Embedded Fiberglass Strand Pattern matching resin layup width
+      if (currentStep > 3 || (currentStep === 3 && activeSubStep >= 2)) {
+        const fiberWidthM = currentStep >= 4 && config.profile !== 'flat' ? widthM * 0.98 : flatResinWidthM * 0.98;
+        const fiberGeo = new THREE.PlaneGeometry(fiberWidthM, lengthM * 0.98, 20, 40);
+        fiberGeo.rotateX(-Math.PI / 2);
 
-      const fiberTex = createFiberglassTexture(fiberWidthM, lengthM);
+        const fiberTex = createFiberglassTexture(fiberWidthM, lengthM);
 
-      const fiberMat = new THREE.MeshStandardMaterial({
-        map: fiberTex,
-        transparent: true,
-        opacity: xrayMode ? 0.98 : 0.88,
-        roughness: 0.3,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      });
+        const fiberMat = new THREE.MeshStandardMaterial({
+          map: fiberTex,
+          transparent: true,
+          opacity: xrayMode ? 0.98 : 0.88,
+          roughness: 0.3,
+          metalness: 0.1,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+        });
 
-      const fiberMesh = new THREE.Mesh(fiberGeo, fiberMat);
-      // Position right at top of liquid resin matrix so glass fiber strands are 100% discernible
-      fiberMesh.position.set(0, tableTopY + 0.005 + thicknessM + 0.001, 0);
-      fiberMesh.renderOrder = 2;
-      scene.add(fiberMesh);
-      fiberTextureRef.current = fiberMesh;
+        const fiberMesh = new THREE.Mesh(fiberGeo, fiberMat);
+        // Positioned in the middle of resin matrix
+        fiberMesh.position.set(0, tableTopY + 0.005 + thicknessM * 0.5, 0);
+        fiberMesh.renderOrder = 2;
+        scene.add(fiberMesh);
+        fiberTextureRef.current = fiberMesh;
+      }
+
+      // Sub-step 3.3+: Uppermost Top 50% Liquid Resin Coat Overlay
+      if (currentStep > 3 || (currentStep === 3 && activeSubStep >= 3)) {
+        const topResinGeo = sheetGeo.clone();
+        const topResinMat = new THREE.MeshPhysicalMaterial({
+          color: hexColor,
+          transparent: true,
+          opacity: opacityVal * 0.9,
+          roughness: Math.max(0.01, roughnessVal * 0.8),
+          transmission: transmissionVal,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.05,
+          wireframe: wireframeMode,
+        });
+
+        const topResinSheet = new THREE.Mesh(topResinGeo, topResinMat);
+        topResinSheet.position.set(0, tableTopY + 0.005 + thicknessM * 0.75 + 0.001, 0);
+        topResinSheet.name = 'Top 50% Resin Coat (Uppermost Liquid Layer)';
+        scene.add(topResinSheet);
+      }
     }
 
-    // 5. Top Mylar Film & Die & Compression Weights (Step 4)
+    // 5. Top Mylar Film & Sheet Transfer (Step 4)
     if (currentStep >= 4 && currentStep < 5) {
-      // Top Mylar Film
-      const topMylarGeo = new THREE.PlaneGeometry(mylarWidthM, lengthM);
-      topMylarGeo.rotateX(-Math.PI / 2);
-      const topMylarMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: xrayMode ? 0.3 : 0.65,
-        roughness: 0.1,
-        transmission: 0.7,
-        reflectivity: 0.9,
-        wireframe: wireframeMode,
-        side: THREE.DoubleSide,
-      });
-      const topMylarSheet = new THREE.Mesh(topMylarGeo, topMylarMat);
-      topMylarSheet.position.set(0, tableTopY + 0.007 + thicknessM, 0);
-      topMylarSheet.name = 'Top Mylar Film';
-      scene.add(topMylarSheet);
-      topMylarRef.current = topMylarSheet;
+      // Sub-step 4.1+: Top Mylar Roll Assembly at bed head
+      if (activeSubStep >= 1) {
+        const topRollGroup = new THREE.Group();
+        topRollGroup.position.set(0, tableTopY + 0.35, -totalBedLengthM / 2 - 0.1);
 
-      // Profile Shaping Die Group
-      const dieGroup = new THREE.Group();
-      dieGroup.name = 'Profile Shaping Die';
-
-      const dieY = tableTopY + 0.01 + thicknessM;
-      let dieGeo: THREE.BufferGeometry;
-
-      if (config.profile === 'profile_7v') {
-        dieGeo = create7vOr6vGeometry(widthM * 1.05, lengthM, 0.04, 7);
-      } else if (config.profile === 'profile_6v') {
-        dieGeo = create7vOr6vGeometry(widthM * 1.05, lengthM, 0.04, 6);
-      } else if (config.profile === 'corrugated_sinusoidal') {
-        dieGeo = createCorrugatedGeometry(widthM * 1.05, lengthM, 0.04, 12, 0.03);
-      } else if (config.profile === 'trapezoidal_rib') {
-        dieGeo = createTrapezoidalGeometry(widthM * 1.05, lengthM, 0.04, 8, 0.035);
-      } else {
-        dieGeo = new THREE.BoxGeometry(widthM * 1.05, 0.04, lengthM);
-      }
-
-      const dieMat = new THREE.MeshStandardMaterial({
-        color: 0x475569, // steel grey profile die
-        metalness: 0.85,
-        roughness: 0.25,
-        wireframe: wireframeMode,
-      });
-
-      const dieMesh = new THREE.Mesh(dieGeo, dieMat);
-      dieMesh.position.set(0, dieY + 0.02, 0);
-      dieMesh.castShadow = true;
-      dieGroup.add(dieMesh);
-
-      scene.add(dieGroup);
-      dieGroupRef.current = dieGroup;
-
-      // Compression Weights placed along length (spaced every 0.6m)
-      const weightsGroup = new THREE.Group();
-      weightsGroup.name = 'Compression Cast Iron Weights';
-
-      const weightCount = Math.max(3, Math.floor(lengthM / 0.6) + 1);
-      const weightSpacingZ = lengthM / (weightCount + 1);
-      const weightMat = new THREE.MeshStandardMaterial({
-        color: 0xca8a04, // industrial safety yellow
-        metalness: 0.6,
-        roughness: 0.4,
-        wireframe: wireframeMode,
-      });
-
-      for (let w = 1; w <= weightCount; w++) {
-        const wz = -lengthM / 2 + w * weightSpacingZ;
-
-        // Pair of weights (left & right)
-        [-widthM * 0.3, widthM * 0.3].forEach((wx) => {
-          const wBlockGeo = new THREE.BoxGeometry(0.2, 0.12, 0.3);
-          const wMesh = new THREE.Mesh(wBlockGeo, weightMat);
-          wMesh.position.set(wx, dieY + 0.08, wz);
-          wMesh.castShadow = true;
-
-          // Weight handle
-          const handleGeo = new THREE.TorusGeometry(0.05, 0.012, 8, 16, Math.PI);
-          const handleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 });
-          const handleMesh = new THREE.Mesh(handleGeo, handleMat);
-          handleMesh.rotation.x = -Math.PI / 2;
-          handleMesh.position.set(wx, dieY + 0.14, wz);
-
-          weightsGroup.add(wMesh, handleMesh);
+        const topRollCoreGeo = new THREE.CylinderGeometry(0.065, 0.065, mylarWidthM * 1.02, 32);
+        topRollCoreGeo.rotateZ(Math.PI / 2);
+        const topRollMat = new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          transparent: true,
+          opacity: 0.85,
+          metalness: 0.2,
+          roughness: 0.1,
         });
+        const topRollMesh = new THREE.Mesh(topRollCoreGeo, topRollMat);
+        topRollGroup.add(topRollMesh);
+
+        // Support brackets for top roll
+        const bracketGeo = new THREE.BoxGeometry(0.04, 0.25, 0.04);
+        const bracketMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+        const bL = new THREE.Mesh(bracketGeo, bracketMat);
+        bL.position.set(-mylarWidthM / 2 - 0.05, -0.05, 0);
+        const bR = new THREE.Mesh(bracketGeo, bracketMat);
+        bR.position.set(mylarWidthM / 2 + 0.05, -0.05, 0);
+        topRollGroup.add(bL, bR);
+
+        scene.add(topRollGroup);
       }
 
-      scene.add(weightsGroup);
-      weightsGroupRef.current = weightsGroup;
+      // Sub-step 4.2+: Top Mylar Release Film unrolled over layup
+      if (activeSubStep >= 2) {
+        let topMylarGeo: THREE.BufferGeometry;
+        if (config.profile === 'profile_7v') {
+          topMylarGeo = create7vOr6vGeometry(mylarWidthM, lengthM, 0.002, 7);
+        } else if (config.profile === 'profile_6v') {
+          topMylarGeo = create7vOr6vGeometry(mylarWidthM, lengthM, 0.002, 6);
+        } else if (config.profile === 'corrugated_sinusoidal') {
+          topMylarGeo = createCorrugatedGeometry(mylarWidthM, lengthM, 0.002, 12, 0.03);
+        } else if (config.profile === 'trapezoidal_rib') {
+          topMylarGeo = createTrapezoidalGeometry(mylarWidthM, lengthM, 0.002, 8, 0.035);
+        } else {
+          topMylarGeo = new THREE.PlaneGeometry(mylarWidthM, lengthM, 20, 40);
+          topMylarGeo.rotateX(-Math.PI / 2);
+        }
+
+        // Striking Ice-Cyan Tinted BOPET Film Material
+        const topMylarMat = new THREE.MeshPhysicalMaterial({
+          color: 0x38bdf8, // Ice-cyan film glow
+          transparent: true,
+          opacity: xrayMode ? 0.45 : 0.80,
+          roughness: 0.05,
+          transmission: 0.55,
+          reflectivity: 0.98,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.02,
+          wireframe: wireframeMode,
+          side: THREE.DoubleSide,
+        });
+
+        const topMylarSheet = new THREE.Mesh(topMylarGeo, topMylarMat);
+        // Positioned right on top of resin & fiberglass layup
+        topMylarSheet.position.set(0, tableTopY + 0.008 + thicknessM + 0.003, 0);
+        topMylarSheet.name = 'Top Mylar Release Film (Uppermost Film Layer)';
+        topMylarSheet.renderOrder = 3;
+
+        // Glowing Cyan Film Margin Edge Line Highlight
+        const topEdgeLineMat = new THREE.LineBasicMaterial({ color: 0x06b6d4, linewidth: 3 });
+        const topEdges = new THREE.EdgesGeometry(topMylarGeo);
+        const topEdgeLines = new THREE.LineSegments(topEdges, topEdgeLineMat);
+        topMylarSheet.add(topEdgeLines);
+
+        scene.add(topMylarSheet);
+        topMylarRef.current = topMylarSheet;
+      }
     }
 
     // 6. Curing & Drying Heat Lamps Bar (Step 4)
@@ -827,12 +850,163 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing touch-none" />
 
       {/* 3D Scene Controls & Overlays */}
-      <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-        <div className="bg-slate-950/80 backdrop-blur-md p-2 rounded-lg border border-slate-800 text-xs text-slate-300 shadow-lg flex items-center gap-2">
+      <div className="absolute top-3 left-3 flex flex-col gap-2 z-10 pointer-events-none">
+        <div className="bg-slate-950/85 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs text-slate-300 shadow-xl flex items-center gap-2 pointer-events-auto">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-mono font-medium text-slate-200">3D WebGL Canvas</span>
+          <span className="font-mono font-medium text-slate-200 text-[11px]">3D WebGL Canvas</span>
         </div>
       </div>
+
+      {/* Layer Hierarchy HUD Overlay */}
+      <div className="absolute top-3 right-3 z-10 max-w-[260px] sm:max-w-[300px] pointer-events-none font-sans">
+        <div className="bg-slate-950/90 backdrop-blur-md p-2.5 rounded-xl border border-blue-500/30 text-xs text-slate-200 shadow-2xl pointer-events-auto flex flex-col gap-1.5">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400">
+              Layer Stack (Top → Bottom)
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">Step {currentStep}/6</span>
+          </div>
+
+          <div className="flex flex-col gap-1 text-[11px]">
+            {currentStep === 1 && (
+              <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Top: Modular Steel Bed</span>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="flex items-center gap-1.5 text-cyan-300 font-semibold bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-500/30">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span>TOP: Lower Mylar Release Film</span>
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <>
+                <div className="flex items-center gap-1.5 text-cyan-300 font-bold bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/40">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>UPPERMOST: Top 50% Resin Coat</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>Mid: Glass Fiber Mat (CSM)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-400 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                  <span>Base: Lower 50% Resin & Mylar</span>
+                </div>
+              </>
+            )}
+
+            {currentStep === 4 && (
+              <>
+                <div className="flex items-center gap-1.5 text-cyan-300 font-bold bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/50 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>UPPERMOST: Ice-Cyan Top Mylar Release Film</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  <span>Upper 50% Resin Coat</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>Mid: Glass Fiber Reinforcement Mat</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-400 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                  <span>Base: Lower Resin Coat & Mylar</span>
+                </div>
+              </>
+            )}
+
+            {currentStep === 5 && (
+              <>
+                <div className="flex items-center gap-1.5 text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>UPPERMOST: Cured Surface Coat</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  <span>Core: Crosslinked FRP Sheet</span>
+                </div>
+              </>
+            )}
+
+            {currentStep === 6 && (
+              <div className="flex items-center gap-1.5 text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>UPPERMOST: Trimmed 3D FRP Sheet</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Machine View Sequential Sub-Step Execution Control Bar */}
+      {SUB_STEPS_DATA[currentStep] && (
+        <div className="absolute bottom-3 left-3 right-3 z-20 pointer-events-none font-sans flex flex-col items-center">
+          <div className="w-full max-w-xl bg-slate-950/92 backdrop-blur-md p-2 sm:p-2.5 rounded-xl border border-blue-500/40 text-xs text-slate-200 shadow-2xl pointer-events-auto flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2 border-b border-slate-800/80 pb-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 shrink-0">
+                  Sub-step Sequence
+                </span>
+                <span className="font-bold text-white text-xs truncate">
+                  {SUB_STEPS_DATA[currentStep][activeSubStep - 1]?.title || `Sub-step ${currentStep}.${activeSubStep}`}
+                </span>
+              </div>
+
+              {/* Sub-step selector tabs */}
+              <div className="flex items-center gap-1 shrink-0">
+                {SUB_STEPS_DATA[currentStep].map((sub) => {
+                  const isSel = sub.subStepId === activeSubStep;
+                  return (
+                    <button
+                      key={sub.subStepId}
+                      type="button"
+                      onClick={() => onSelectSubStep && onSelectSubStep(sub.subStepId)}
+                      className={`px-2 py-1 rounded text-[11px] font-mono font-semibold transition-all ${
+                        isSel
+                          ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-400'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+                      }`}
+                    >
+                      {currentStep}.{sub.subStepId}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Current Sub-step description & action navigation */}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <p className="text-[11px] text-slate-300 leading-snug line-clamp-1 flex-1 min-w-0">
+                {SUB_STEPS_DATA[currentStep][activeSubStep - 1]?.description}
+              </p>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={activeSubStep === 1}
+                  onClick={() => onSelectSubStep && onSelectSubStep(activeSubStep - 1)}
+                  className="px-2 py-1 text-[10px] font-mono font-medium rounded bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ◄ Prev
+                </button>
+                <button
+                  type="button"
+                  disabled={activeSubStep === 3}
+                  onClick={() => onSelectSubStep && onSelectSubStep(activeSubStep + 1)}
+                  className="px-2.5 py-1 text-[10px] font-mono font-bold rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shadow-sm"
+                >
+                  Next Sub-step ►
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
