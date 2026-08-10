@@ -1,0 +1,6 @@
+{
+  "name": "UFRP",
+  "description": "UFRP (Unsaturated Fiberglass Reinforced Polymer) Pultrusion Sheet Engineering, Chemical Dosing & Thermal Batch POS Ticket PWA Application",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

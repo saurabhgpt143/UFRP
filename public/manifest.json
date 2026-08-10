@@ -1,0 +1,53 @@
+{
+  "name": "UFRP Sheet Engineering & Pultrusion Simulator",
+  "short_name": "UFRP",
+  "description": "UFRP Unsaturated Fiberglass Reinforced Polymer Sheet Engineering, Chemical Dosing & Thermal Batch POS Ticket Simulator",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "scope": "/",
+  "categories": [
+    "engineering",
+    "industrial",
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "UFRP Chemical Dosing",
+      "short_name": "Dosing",
+      "description": "Open resin catalyst dosing and formulation ratios",
+      "url": "/?action=dosing",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Thermal Batch POS Ticket",
+      "short_name": "Receipt",
+      "description": "Generate thermal printer receipt mixture badge",
+      "url": "/?action=ticket",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
