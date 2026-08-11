@@ -69,6 +69,27 @@ export interface TableSpec {
   levelnessMmPerM: number;
 }
 
+export interface LifespanDegradationPoint {
+  year: number;
+  structuralIntegrityPercent: number;
+  uvResistancePercent: number;
+  weatheringCondition: string;
+}
+
+export interface LifespanProjection {
+  expectedLifespanYears: number;
+  baseResinLifespanYears: number;
+  uvProtectionBonusYears: number;
+  thicknessBonusYears: number;
+  fiberReinforcementBonusYears: number;
+  chemicalResistanceRating: string;
+  uvDegradationResistance: string;
+  uvProtectionType: string;
+  maintenanceRecommendation: string;
+  warrantyPeriodYears: number;
+  degradationGraphData: LifespanDegradationPoint[];
+}
+
 export interface MaterialCalculations {
   ultimateWidthMm: number;
   profileStretchFactor: number;
@@ -125,6 +146,7 @@ export interface MaterialCalculations {
   flexuralStiffnessGpa: number;
   lightTransmittancePercent: number;
   peakExothermTempC: number;
+  lifespanProjection: LifespanProjection;
   resinTypeSpec: {
     typeKey: ResinType;
     name: string;
@@ -135,6 +157,17 @@ export interface MaterialCalculations {
     uvGrade: string;
     applicationDomain: string;
     chemicalResistance: string;
+  };
+  glassFiberSpec: {
+    typeKey: GlassFiberType;
+    name: string;
+    gsmPerLayer: number;
+    recommendedResinRatio: number;
+    recommendedResinRatioPercent: number;
+    resinToGlassRatioText: string;
+    description: string;
+    typicalApplications: string;
+    weaveStructure: string;
   };
 }
 

@@ -20,7 +20,11 @@ import {
   Settings2,
   TrendingDown,
   IndianRupee,
-  Share2
+  Share2,
+  Clock,
+  Sun,
+  Shield,
+  Activity
 } from 'lucide-react';
 
 interface InspectionModalProps {
@@ -276,6 +280,159 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                     <span>{std}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3.5: Projected Product Lifespan & Chemical Durability Matrix */}
+          <div className="bg-slate-950 p-3 sm:p-4 rounded-xl border border-amber-500/30 flex flex-col gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-amber-400">
+                    Product Field Lifespan & Chemical Durability Projection
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-sans">
+                    Calibrated field service forecast based on polymer chemistry & UV surface shield
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 rounded-xl text-center">
+                  <span className="text-[9px] uppercase font-mono text-amber-400 block">Projected Field Life</span>
+                  <strong className="text-xs sm:text-sm font-extrabold text-white font-mono">{materials.lifespanProjection.expectedLifespanYears} Years</strong>
+                </div>
+                <div className="bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-1 rounded-xl text-center">
+                  <span className="text-[9px] uppercase font-mono text-emerald-400 block">Performance Warranty</span>
+                  <strong className="text-xs sm:text-sm font-extrabold text-white font-mono">{materials.lifespanProjection.warrantyPeriodYears} Years</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Lifespan Factor Contributors Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Resin Matrix Baseline</span>
+                <strong className="text-amber-300 text-xs sm:text-sm">{materials.lifespanProjection.baseResinLifespanYears} Years</strong>
+                <span className="text-[9px] text-slate-400 font-sans block truncate" title={materials.resinTypeSpec.name}>{materials.resinTypeSpec.name}</span>
+              </div>
+
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">UV Weather Barrier</span>
+                <strong className="text-emerald-300 text-xs sm:text-sm">+{materials.lifespanProjection.uvProtectionBonusYears} Years</strong>
+                <span className="text-[9px] text-slate-400 font-sans block truncate" title={materials.lifespanProjection.uvProtectionType}>{materials.lifespanProjection.uvProtectionType}</span>
+              </div>
+
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Thickness Gauge Mass</span>
+                <strong className="text-cyan-300 text-xs sm:text-sm">
+                  {materials.lifespanProjection.thicknessBonusYears >= 0 ? `+${materials.lifespanProjection.thicknessBonusYears}` : materials.lifespanProjection.thicknessBonusYears} Years
+                </strong>
+                <span className="text-[9px] text-slate-400 font-sans block">{config.thicknessMm}mm Sheet Gauge</span>
+              </div>
+
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Fiber Reinforcement</span>
+                <strong className="text-blue-300 text-xs sm:text-sm">+{materials.lifespanProjection.fiberReinforcementBonusYears} Years</strong>
+                <span className="text-[9px] text-slate-400 font-sans block truncate" title={materials.glassFiberSpec.name}>{materials.glassFiberSpec.name}</span>
+              </div>
+            </div>
+
+            {/* Chemical & Degradation Specifications Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-sans">
+              <div className="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-blue-300 font-bold uppercase">
+                  <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" /> UV Exposure & Sunlight Resistance
+                </div>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  <strong>Classification:</strong> {materials.lifespanProjection.uvDegradationResistance}
+                </p>
+                <p className="text-slate-400 text-[10px]">
+                  <strong>Surface Protection:</strong> {materials.lifespanProjection.uvProtectionType} prevents yellowing, surface micro-cracking, and resin-fiber debonding under intense tropical solar irradiance.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 font-mono text-[11px] text-indigo-300 font-bold uppercase">
+                  <Shield className="w-3.5 h-3.5 text-indigo-400 shrink-0" /> Chemical & Corrosion Durability
+                </div>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  <strong>Chemical Rating:</strong> {materials.lifespanProjection.chemicalResistanceRating}
+                </p>
+                <p className="text-slate-400 text-[10px]">
+                  <strong>Heat Deflection Temp (HDT):</strong> {materials.resinTypeSpec.hdtC}°C. Matrix resists chemical degradation, acid rainfall, and marine moisture ingress.
+                </p>
+              </div>
+            </div>
+
+            {/* Graphical Degradation Projection Curve over 30 Years */}
+            <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <span className="text-[11px] font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400" /> Projected Performance Retention & Aging Trajectory (0 – 30 Years)
+                </span>
+                <div className="flex items-center gap-3 text-[10px] font-mono">
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span> Structural Strength
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-400">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block"></span> UV Shield Retention
+                  </span>
+                </div>
+              </div>
+
+              {/* Bar Chart Projection Grid */}
+              <div className="grid grid-cols-7 gap-1.5 pt-2">
+                {materials.lifespanProjection.degradationGraphData.map((pt) => {
+                  const isEnd = pt.year > materials.lifespanProjection.expectedLifespanYears;
+                  return (
+                    <div key={pt.year} className="flex flex-col items-center gap-1.5 text-[10px] font-mono">
+                      {/* Visual Dual Bars Container */}
+                      <div className="w-full h-24 bg-slate-950 rounded-lg p-1 border border-slate-800 flex items-end justify-center gap-1 relative overflow-hidden group">
+                        {/* Structural Bar */}
+                        <div
+                          style={{ height: `${pt.structuralIntegrityPercent}%` }}
+                          className={`w-1/2 rounded-t transition-all duration-500 ${
+                            pt.structuralIntegrityPercent >= 80
+                              ? 'bg-gradient-to-t from-emerald-600 to-emerald-400'
+                              : pt.structuralIntegrityPercent >= 60
+                              ? 'bg-gradient-to-t from-teal-600 to-teal-400'
+                              : 'bg-gradient-to-t from-amber-600 to-amber-400'
+                          }`}
+                          title={`Year ${pt.year}: ${pt.structuralIntegrityPercent}% Structural Strength`}
+                        />
+                        {/* UV Protection Bar */}
+                        <div
+                          style={{ height: `${pt.uvResistancePercent}%` }}
+                          className={`w-1/2 rounded-t transition-all duration-500 ${
+                            pt.uvResistancePercent >= 70
+                              ? 'bg-gradient-to-t from-amber-600 to-amber-400'
+                              : 'bg-gradient-to-t from-rose-600 to-rose-400'
+                          }`}
+                          title={`Year ${pt.year}: ${pt.uvResistancePercent}% UV Retention`}
+                        />
+                      </div>
+
+                      {/* Labels */}
+                      <span className={`font-bold text-[10px] ${isEnd ? 'text-slate-500' : 'text-white'}`}>
+                        Yr {pt.year}
+                      </span>
+                      <div className="text-[9px] text-slate-400 text-center leading-tight">
+                        <span className="text-emerald-300 font-bold block">{pt.structuralIntegrityPercent}%</span>
+                        <span className="text-amber-300 block">{pt.uvResistancePercent}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="bg-slate-950 p-2 rounded border border-slate-800 text-[10px] text-slate-300 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span><strong>Maintenance Protocol:</strong> {materials.lifespanProjection.maintenanceRecommendation}</span>
               </div>
             </div>
           </div>

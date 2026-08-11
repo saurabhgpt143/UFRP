@@ -1,4 +1,72 @@
-import { FRPConfig, MaterialCalculations, TableSpec, ResinType } from '../types';
+import { FRPConfig, MaterialCalculations, TableSpec, ResinType, GlassFiberType } from '../types';
+
+export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
+  typeKey: GlassFiberType;
+  name: string;
+  gsmPerLayer: number;
+  recommendedResinRatio: number;
+  recommendedResinRatioPercent: number;
+  resinToGlassRatioText: string;
+  description: string;
+  typicalApplications: string;
+  weaveStructure: string;
+}> = {
+  csm_300: {
+    typeKey: 'csm_300',
+    name: 'Chopped Strand Mat (CSM 300 gsm)',
+    gsmPerLayer: 300,
+    recommendedResinRatio: 0.70,
+    recommendedResinRatioPercent: 70,
+    resinToGlassRatioText: '70:30 Resin:Glass (2.33:1 Weight Ratio)',
+    description: 'Lightweight random emulsion-bonded chopped strands. Requires higher liquid resin volume to thoroughly wet out binder emulsion.',
+    typicalApplications: 'Translucent Skylights, Architectural Decorative Sheets, Light Duty Corrugated Covers',
+    weaveStructure: 'Randomly Oriented Short Chopped Strands with Emulsion Binder',
+  },
+  csm_450: {
+    typeKey: 'csm_450',
+    name: 'Chopped Strand Mat (CSM 450 gsm)',
+    gsmPerLayer: 450,
+    recommendedResinRatio: 0.67,
+    recommendedResinRatioPercent: 67,
+    resinToGlassRatioText: '67:33 Resin:Glass (2.03:1 Weight Ratio)',
+    description: 'Industry standard medium-weight chopped strand mat. Optimal resin retention for uniform translucency and multi-directional strength.',
+    typicalApplications: 'Industrial Roofing Sheets, Factory Daylighting Panels, Chemical Plant Cladding',
+    weaveStructure: 'Isotropic Random Chopped Strands (50mm cut fibers)',
+  },
+  csm_600: {
+    typeKey: 'csm_600',
+    name: 'Chopped Strand Mat (CSM 600 gsm)',
+    gsmPerLayer: 600,
+    recommendedResinRatio: 0.65,
+    recommendedResinRatioPercent: 65,
+    resinToGlassRatioText: '65:35 Resin:Glass (1.86:1 Weight Ratio)',
+    description: 'Heavy gauge chopped strand mat. Provides rapid laminate thickness build-up with high structural impact absorption.',
+    typicalApplications: 'Heavy-Duty Industrial Roofing, High-Wind Coastal Canopies, Corrosion Barriers',
+    weaveStructure: 'Dense Random Chopped Mat',
+  },
+  woven_roving_600: {
+    typeKey: 'woven_roving_600',
+    name: 'Woven Roving Fabric (600 gsm)',
+    gsmPerLayer: 600,
+    recommendedResinRatio: 0.52,
+    recommendedResinRatioPercent: 52,
+    resinToGlassRatioText: '52:48 Resin:Glass (1.08:1 Weight Ratio)',
+    description: 'Bi-directional continuous woven glass roving (0°/90°). Continuous filaments pack tightly, needing significantly lower resin content.',
+    typicalApplications: 'High Flexural Structural Panels, Structural Cooling Tower Casing, Heavy Load Bridges',
+    weaveStructure: 'Plain Weave Continuous Filament Rovings (0°/90° Warp & Weft)',
+  },
+  multiaxial_800: {
+    typeKey: 'multiaxial_800',
+    name: 'Multiaxial Biaxial Stitch Mat (800 gsm)',
+    gsmPerLayer: 800,
+    recommendedResinRatio: 0.48,
+    recommendedResinRatioPercent: 48,
+    resinToGlassRatioText: '48:52 Resin:Glass (0.92:1 Weight Ratio)',
+    description: 'Non-crimp stitched multiaxial reinforcement (+45°/-45° or 0°/90°). Maximum structural glass packing density with lowest resin wet-out volume.',
+    typicalApplications: 'Heavy Industrial Structural FRP, Extreme Load Panels, Seismic Resistant Enclosures',
+    weaveStructure: 'Stitched Non-Crimp Multiaxial Continuous Strands',
+  },
+};
 
 export const RESIN_SPECS: Record<ResinType, {
   typeKey: ResinType;
@@ -128,12 +196,8 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const sheetVolumeCm3 = effectiveAreaM2 * (config.thicknessMm / 10) * 10000; // in cm³
 
   // Fiberglass GSM
-  let gsmPerLayer = 450;
-  if (config.fiberType === 'csm_300') gsmPerLayer = 300;
-  if (config.fiberType === 'csm_450') gsmPerLayer = 450;
-  if (config.fiberType === 'csm_600') gsmPerLayer = 600;
-  if (config.fiberType === 'woven_roving_600') gsmPerLayer = 600;
-  if (config.fiberType === 'multiaxial_800') gsmPerLayer = 800;
+  const activeGlassSpec = GLASS_FIBER_SPECS[config.fiberType] || GLASS_FIBER_SPECS['csm_450'];
+  const gsmPerLayer = activeGlassSpec.gsmPerLayer;
 
   const totalGlassGsm = gsmPerLayer * config.glassLayers;
   const totalGlassWeightKg = (totalGlassGsm * effectiveAreaM2) / 1000;
@@ -292,6 +356,95 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   // Peak exotherm reaction temp
   const peakExothermTempC = config.dryingTempC + (config.catalystPercent * 18.5);
 
+  // Lifespan & Durability Calculations
+  let baseResinLifespanYears = 12;
+  if (activeResinType === 'isophthalic') baseResinLifespanYears = 18;
+  if (activeResinType === 'dicyclopentadiene') baseResinLifespanYears = 15;
+  if (activeResinType === 'acrylic_modified') baseResinLifespanYears = 22;
+  if (activeResinType === 'vinyl_ester') baseResinLifespanYears = 25;
+
+  // UV Exposure Resistance & Surface Film/Gelcoat Protection
+  let uvProtectionBonusYears = 3;
+  let uvProtectionType = "36µm UV-Stabilized Mylar Carrier Film";
+  let uvDegradationResistance = "Standard UV-2 Weather Grade (ISO 4892)";
+
+  const step1 = config.step1Method || '';
+  const step5 = config.step5Method || '';
+  const hasGelcoat = step1.includes('gelcoat') || step5.includes('gelcoat');
+
+  if (hasGelcoat) {
+    uvProtectionBonusYears = 7;
+    uvProtectionType = "Isophthalic Neopentyl Glycol (NPG) Gelcoat + UV Absorber";
+    uvDegradationResistance = "Extreme UV-5 Outdoor Weathering Class (4000 hr QUV Passed)";
+  } else if (config.mylarThicknessUm >= 50) {
+    uvProtectionBonusYears = 5;
+    uvProtectionType = `${config.mylarThicknessUm}µm Heavy Duty Weather-Shield Mylar Film`;
+    uvDegradationResistance = "High UV-4 Commercial Roof Grade";
+  } else if (config.mylarThicknessUm >= 30) {
+    uvProtectionBonusYears = 4;
+    uvProtectionType = `${config.mylarThicknessUm}µm UV-Inhibited PET Film Coating`;
+    uvDegradationResistance = "Enhanced UV-3 Weather Resistance Class";
+  }
+
+  // Thickness Structural Durability Factor
+  let thicknessBonusYears = 0;
+  if (config.thicknessMm >= 2.5) thicknessBonusYears = 4;
+  else if (config.thicknessMm >= 1.8) thicknessBonusYears = 2;
+  else if (config.thicknessMm < 1.2) thicknessBonusYears = -2;
+
+  // Glass Fiber Reinforcement Structural Toughness
+  let fiberReinforcementBonusYears = 0;
+  if (config.fiberType === 'woven_roving_600' || config.fiberType === 'multiaxial_800') {
+    fiberReinforcementBonusYears = 3;
+  } else if (config.glassLayers >= 3) {
+    fiberReinforcementBonusYears = 2;
+  }
+
+  // Filler Effect
+  let fillerLifespanBonus = 0;
+  if (fillerType === 'silica_powder') fillerLifespanBonus = 2;
+  if (fillerType === 'ath_flame_retardant') fillerLifespanBonus = 1;
+
+  const expectedLifespanYears = Math.min(35, Math.max(8, baseResinLifespanYears + uvProtectionBonusYears + thicknessBonusYears + fiberReinforcementBonusYears + fillerLifespanBonus));
+  const warrantyPeriodYears = Math.round(expectedLifespanYears * 0.6);
+
+  // Chemical Resistance Rating Text
+  let chemicalResistanceRating = activeResinSpec.chemicalResistance;
+  if (fillerType === 'ath_flame_retardant') {
+    chemicalResistanceRating += " + Flame Retardant (UL94 V-0)";
+  } else if (fillerType === 'silica_powder') {
+    chemicalResistanceRating += " + High Abrasion Resistance";
+  }
+
+  // Degradation Curve Data (0 to 30 years)
+  const degradationGraphData = [0, 5, 10, 15, 20, 25, 30].map((year) => {
+    // Annual degradation rate depends on UV shield and resin quality
+    const annualStructDecay = 100 / (expectedLifespanYears * 2.6);
+    const annualUvDecay = 100 / (expectedLifespanYears * 2.1);
+
+    const structPct = Math.max(25, Math.round(100 - (year * annualStructDecay)));
+    const uvPct = Math.max(15, Math.round(100 - (year * annualUvDecay)));
+
+    let condition = "Pristine Factory Cured";
+    if (year === 5) condition = "Optimal Service (UV Shield Active)";
+    else if (year === 10) condition = "Minor Surface Sheen Wear";
+    else if (year === 15) condition = "Stable Service (Passes BIS Load)";
+    else if (year === 20) condition = "Noticeable Surface Chalking";
+    else if (year === 25) condition = "Matrix Resin Weather Wear";
+    else if (year === 30) condition = "End of Primary Service Life";
+
+    return {
+      year,
+      structuralIntegrityPercent: structPct,
+      uvResistancePercent: uvPct,
+      weatheringCondition: condition,
+    };
+  });
+
+  const maintenanceRecommendation = expectedLifespanYears > 20
+    ? "Low Maintenance. Inspect seals & flashings every 5 years. Optional PU re-coat after 15 years extends lifespan by +8 years."
+    : "Standard Roof Maintenance. Wash with mild detergent every 2 years. Apply UV acrylic re-sealant after 8–10 years.";
+
   return {
     ultimateWidthMm,
     profileStretchFactor,
@@ -348,6 +501,19 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     flexuralStiffnessGpa: parseFloat(flexuralStiffnessGpa.toFixed(1)),
     lightTransmittancePercent,
     peakExothermTempC: Math.round(peakExothermTempC),
+    lifespanProjection: {
+      expectedLifespanYears,
+      baseResinLifespanYears,
+      uvProtectionBonusYears,
+      thicknessBonusYears,
+      fiberReinforcementBonusYears,
+      chemicalResistanceRating,
+      uvDegradationResistance,
+      uvProtectionType,
+      maintenanceRecommendation,
+      warrantyPeriodYears,
+      degradationGraphData,
+    },
     resinTypeSpec: {
       typeKey: activeResinSpec.typeKey,
       name: activeResinSpec.name,
@@ -358,6 +524,17 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
       uvGrade: activeResinSpec.uvGrade,
       applicationDomain: activeResinSpec.applicationDomain,
       chemicalResistance: activeResinSpec.chemicalResistance,
+    },
+    glassFiberSpec: {
+      typeKey: activeGlassSpec.typeKey,
+      name: activeGlassSpec.name,
+      gsmPerLayer: activeGlassSpec.gsmPerLayer,
+      recommendedResinRatio: activeGlassSpec.recommendedResinRatio,
+      recommendedResinRatioPercent: activeGlassSpec.recommendedResinRatioPercent,
+      resinToGlassRatioText: activeGlassSpec.resinToGlassRatioText,
+      description: activeGlassSpec.description,
+      typicalApplications: activeGlassSpec.typicalApplications,
+      weaveStructure: activeGlassSpec.weaveStructure,
     },
   };
 }

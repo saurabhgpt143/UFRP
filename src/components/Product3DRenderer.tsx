@@ -241,26 +241,6 @@ export const Product3DRenderer: React.FC<Product3DRendererProps> = ({
     sheetMesh.position.set(0, 0, 0);
     scene.add(sheetMesh);
 
-    // Embedded Fiberglass Strand Pattern Overlay
-    const fiberTex = createFiberglassTexture(widthM, lengthM);
-    const fiberOverlayMat = new THREE.MeshStandardMaterial({
-      map: fiberTex,
-      transparent: true,
-      opacity: 0.85,
-      roughness: 0.2,
-      metalness: 0.1,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-    });
-
-    const fiberOverlayMesh = new THREE.Mesh(sheetGeo.clone(), fiberOverlayMat);
-    fiberOverlayMesh.position.set(0, 0, 0);
-    fiberOverlayMesh.scale.set(1.0008, 1.0008, 1.0008);
-    fiberOverlayMesh.renderOrder = 2;
-    scene.add(fiberOverlayMesh);
-
     // Render loop
     let animId: number;
     const animate = () => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SheetCrossProfile, ProfileSpecs } from './SheetCrossProfile';
 import { StepAlternativeSelector } from './StepAlternativeSelector';
-import { calculateMaterials, RESIN_SPECS } from '../utils/frpCalculations';
+import { calculateMaterials, RESIN_SPECS, GLASS_FIBER_SPECS } from '../utils/frpCalculations';
 import {
   FRPConfig,
   MaterialCalculations,
@@ -102,6 +102,14 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
       ...config,
       [key]: value,
     };
+
+    // When changing fiberglass type, automatically adjust resin-to-glass ratio to match the recommended standard for that specific fiberglass
+    if (key === 'fiberType') {
+      const fiberSpec = GLASS_FIBER_SPECS[value as GlassFiberType];
+      if (fiberSpec) {
+        newConfig.resinToGlassRatio = fiberSpec.recommendedResinRatio;
+      }
+    }
 
     // When selecting cross-profile, automatically retrieve the profile's standard final sheet width
     if (key === 'profile') {
@@ -1652,30 +1660,55 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           {step3SubTab === 'fibermat' && (
             <div className="flex flex-col gap-4">
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                Subsequent to the incorporation of the initial resin mixture, apply FiberMat reinforcement layers over the resin mixture.
+                Subsequent to the incorporation of the initial resin mixture, apply FiberMat reinforcement layers over the resin mixture. The appropriate resin-to-glass ratio is calibrated according to the selected fiberglass reinforcement structure.
               </div>
 
-              {/* Glass Fiber Type */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-slate-300">FiberMat Reinforcement Type:</label>
-                <select
-                  value={config.fiberType}
-                  onChange={(e) => updateField('fiberType', e.target.value as GlassFiberType)}
-                  className="bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="csm_300">Chopped Strand FiberMat (CSM 300 gsm)</option>
-                  <option value="csm_450">Chopped Strand FiberMat (CSM 450 gsm)</option>
-                  <option value="csm_600">Chopped Strand FiberMat (CSM 600 gsm)</option>
-                  <option value="woven_roving_600">Woven Roving FiberMat (600 gsm)</option>
-                  <option value="multiaxial_800">Multiaxial Biaxial FiberMat (800 gsm)</option>
-                </select>
+              {/* Glass Fiber Type Selection Grid */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-slate-300 flex flex-wrap items-center justify-between gap-1">
+                  <span>FiberMat Reinforcement Type:</span>
+                  <span className="font-mono text-[10px] text-blue-400 font-bold uppercase truncate max-w-[220px]" title={materials.glassFiberSpec.name}>{materials.glassFiberSpec.name}</span>
+                </label>
+                
+                <div className="grid grid-cols-1 gap-1.5 text-xs font-mono">
+                  {(Object.keys(GLASS_FIBER_SPECS) as GlassFiberType[]).map((typeKey) => {
+                    const spec = GLASS_FIBER_SPECS[typeKey];
+                    const isSelected = config.fiberType === typeKey;
+                    return (
+                      <button
+                        key={typeKey}
+                        type="button"
+                        onClick={() => updateField('fiberType', typeKey)}
+                        className={`p-2 rounded-xl border text-left transition-all flex flex-col gap-1.5 min-w-0 ${
+                          isSelected
+                            ? 'bg-blue-950/80 border-blue-500/80 text-white shadow-md shadow-blue-500/10'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-1 min-w-0">
+                          <span className={`font-bold text-xs min-w-0 break-words ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
+                            {spec.name}
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold shrink-0 whitespace-nowrap ${
+                            isSelected ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-900 text-slate-400 border-slate-800'
+                          }`}>
+                            Rec: {spec.recommendedResinRatioPercent}% Resin
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-sans leading-tight min-w-0 break-words">
+                          {spec.weaveStructure} • {spec.gsmPerLayer} GSM/layer
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Glass Layers */}
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                   <label className="text-slate-300 font-medium">FiberMat Layers Count:</label>
-                  <span className="font-mono font-bold text-blue-400">{config.glassLayers} Layer(s)</span>
+                  <span className="font-mono font-bold text-blue-400 whitespace-nowrap">{config.glassLayers} Layer(s) ({config.glassLayers * materials.glassFiberSpec.gsmPerLayer} GSM total)</span>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[1, 2, 3, 4].map((l) => (
@@ -1694,15 +1727,90 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </div>
               </div>
 
+              {/* Fiberglass-Specific Resin Ratio Selector & Technical Calibration */}
+              <div className="bg-slate-950 p-3 rounded-xl border border-blue-500/30 flex flex-col gap-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                  <span className="text-[11px] font-mono font-bold uppercase text-blue-300 flex items-center gap-1.5 shrink-0">
+                    <FlaskConical className="w-3.5 h-3.5 text-blue-400 shrink-0" /> Resin-to-Glass Calibration
+                  </span>
+                  <span className="text-xs font-mono font-extrabold text-white bg-blue-950 px-2 py-0.5 rounded border border-blue-500/40 shrink-0 whitespace-nowrap">
+                    {Math.round(config.resinToGlassRatio * 100)}% Resin / {Math.round((1 - config.resinToGlassRatio) * 100)}% Glass
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap items-center justify-between text-xs gap-1">
+                    <span className="text-slate-300 font-medium whitespace-nowrap">Calibrated Ratio Slider:</span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Standard: <strong className="text-emerald-400">{materials.glassFiberSpec.recommendedResinRatioPercent}% Resin</strong>
+                    </span>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0.35"
+                    max="0.80"
+                    step="0.01"
+                    value={config.resinToGlassRatio}
+                    onChange={(e) => updateField('resinToGlassRatio', Number(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+
+                  <div className="flex justify-between text-[9px] font-mono text-slate-500 gap-1 overflow-x-auto pb-0.5">
+                    <span className="whitespace-nowrap">35% (Dry Glass)</span>
+                    <span className="whitespace-nowrap">50% (Woven)</span>
+                    <span className="whitespace-nowrap">67% (CSM)</span>
+                    <span className="whitespace-nowrap">80% (Rich Cap)</span>
+                  </div>
+                </div>
+
+                {/* Quick Match Button */}
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => updateField('resinToGlassRatio', materials.glassFiberSpec.recommendedResinRatio)}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      Math.abs(config.resinToGlassRatio - materials.glassFiberSpec.recommendedResinRatio) < 0.005
+                        ? 'bg-emerald-600 text-white border-emerald-400'
+                        : 'bg-slate-900 text-emerald-400 border-emerald-500/40 hover:bg-emerald-950'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    <span>Auto-Match Standard ({materials.glassFiberSpec.recommendedResinRatioPercent}% Resin)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => updateField('resinToGlassRatio', Math.min(0.80, materials.glassFiberSpec.recommendedResinRatio + 0.05))}
+                    className="flex-1 py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold border transition-all bg-slate-900 text-blue-300 border-slate-800 hover:bg-slate-800 flex items-center justify-center gap-1 whitespace-nowrap"
+                  >
+                    <span>Rich Wet-Out (+5% Resin)</span>
+                  </button>
+                </div>
+
+                {/* Technical Fiber Behavior Note */}
+                <div className="bg-blue-950/40 p-2.5 rounded-lg border border-blue-500/20 text-[10px] text-blue-200 leading-relaxed font-sans">
+                  <strong>Industry Standard Specification:</strong> {materials.glassFiberSpec.description} Standard weight ratio is <strong>{materials.glassFiberSpec.resinToGlassRatioText}</strong>.
+                </div>
+              </div>
+
               {/* Material Recipe Summary Box */}
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs flex flex-col gap-1.5 font-mono">
                 <div className="flex justify-between text-slate-400">
+                  <span>Reinforcement Type:</span>
+                  <strong className="text-white">{materials.glassFiberSpec.name}</strong>
+                </div>
+                <div className="flex justify-between text-slate-400">
                   <span>Total FiberMat Weight:</span>
-                  <strong className="text-emerald-300">{materials.totalGlassWeightKg.toFixed(1)} kg</strong>
+                  <strong className="text-emerald-300">{materials.totalGlassWeightKg.toFixed(2)} kg</strong>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Required Resin Weight:</span>
+                  <strong className="text-blue-300">{materials.totalResinWeightKg.toFixed(2)} kg (Ratio {(config.resinToGlassRatio / (1 - config.resinToGlassRatio)).toFixed(2)}:1)</strong>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>Reinforcement Area:</span>
-                  <strong className="text-blue-300">{materials.sheetAreaM2.toFixed(2)} m²</strong>
+                  <strong className="text-cyan-300">{materials.sheetAreaM2.toFixed(2)} m²</strong>
                 </div>
               </div>
 

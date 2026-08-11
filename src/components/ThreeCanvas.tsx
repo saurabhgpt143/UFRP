@@ -350,57 +350,102 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     // 1B. Adjacent Table Line arranged aside for Die at X=sideTableX
     tableGroup.add(createTableLine(sideTableX, 'Adjacent Die Staging Table'));
 
-    // 1C. Staging Die tooling on top of the adjacent die table
-    const sideDieY = tableHeightM + 0.01;
+    // 1C. Staging Lower Die tooling on top of the adjacent die table
+    const sideDieThickness = 0.03;
     let sideDieGeo: THREE.BufferGeometry;
     if (config.profile === 'profile_7v') {
-      sideDieGeo = create7vOr6vGeometry(widthM * 1.0, lengthM, 0.04, 7);
+      sideDieGeo = create7vOr6vGeometry(widthM * 1.0, lengthM, sideDieThickness, 7);
     } else if (config.profile === 'profile_6v') {
-      sideDieGeo = create7vOr6vGeometry(widthM * 1.0, lengthM, 0.04, 6);
+      sideDieGeo = create7vOr6vGeometry(widthM * 1.0, lengthM, sideDieThickness, 6);
     } else if (config.profile === 'corrugated_sinusoidal') {
-      sideDieGeo = createCorrugatedGeometry(widthM * 1.0, lengthM, 0.04, 12, 0.03);
+      sideDieGeo = createCorrugatedGeometry(widthM * 1.0, lengthM, sideDieThickness, 12, 0.03);
     } else if (config.profile === 'trapezoidal_rib') {
-      sideDieGeo = createTrapezoidalGeometry(widthM * 1.0, lengthM, 0.04, 8, 0.035);
+      sideDieGeo = createTrapezoidalGeometry(widthM * 1.0, lengthM, sideDieThickness, 8, 0.035);
     } else {
-      sideDieGeo = new THREE.BoxGeometry(widthM * 1.0, 0.04, lengthM);
+      sideDieGeo = new THREE.BoxGeometry(widthM * 1.0, sideDieThickness, lengthM);
     }
 
     const sideDieMat = new THREE.MeshStandardMaterial({
-      color: 0x64748b, // steel grey profile die staging
+      color: 0x475569, // dark steel grey profile lower die
       metalness: 0.85,
       roughness: 0.25,
       wireframe: wireframeMode,
     });
     const sideDieMesh = new THREE.Mesh(sideDieGeo, sideDieMat);
-    sideDieMesh.position.set(sideTableX, sideDieY + 0.02, 0);
+    // Lower die sits flat on side table surface (top of lower die at tableHeightM + 0.03)
+    sideDieMesh.position.set(sideTableX, tableHeightM + sideDieThickness / 2, 0);
     sideDieMesh.castShadow = true;
+    sideDieMesh.receiveShadow = true;
+    sideDieMesh.name = 'Lower Profile Die Bed';
     tableGroup.add(sideDieMesh);
-
-    // Staging weights on the adjacent die table
-    const sideWeightMat = new THREE.MeshStandardMaterial({
-      color: 0xca8a04,
-      metalness: 0.6,
-      roughness: 0.4,
-      wireframe: wireframeMode,
-    });
-    const sideWeightCount = Math.max(3, Math.floor(lengthM / 0.6) + 1);
-    const sideWeightSpacingZ = lengthM / (sideWeightCount + 1);
-    for (let w = 1; w <= sideWeightCount; w++) {
-      const wz = -lengthM / 2 + w * sideWeightSpacingZ;
-      [-widthM * 0.3, widthM * 0.3].forEach((wx) => {
-        const wBlockGeo = new THREE.BoxGeometry(0.2, 0.12, 0.3);
-        const wMesh = new THREE.Mesh(wBlockGeo, sideWeightMat);
-        wMesh.position.set(sideTableX + wx, sideDieY + 0.08, wz);
-        wMesh.castShadow = true;
-        tableGroup.add(wMesh);
-      });
-    }
 
     scene.add(tableGroup);
     tableGroupRef.current = tableGroup;
 
     // Table Surface Height Level
     const tableTopY = tableHeightM;
+    const lowerDieTopY = tableTopY + sideDieThickness;
+
+    // Upper Die Press Tooling & Hydraulic Actuators (Step 4.3 through Step 6)
+    if ((currentStep === 4 && activeSubStep >= 3) || currentStep >= 5) {
+      const upperDieGroup = new THREE.Group();
+      upperDieGroup.name = 'Upper Compression Die Assembly';
+
+      let upperDieGeo: THREE.BufferGeometry;
+      if (config.profile === 'profile_7v') {
+        upperDieGeo = create7vOr6vGeometry(widthM * 0.98, lengthM, 0.03, 7);
+      } else if (config.profile === 'profile_6v') {
+        upperDieGeo = create7vOr6vGeometry(widthM * 0.98, lengthM, 0.03, 6);
+      } else if (config.profile === 'corrugated_sinusoidal') {
+        upperDieGeo = createCorrugatedGeometry(widthM * 0.98, lengthM, 0.03, 12, 0.03);
+      } else if (config.profile === 'trapezoidal_rib') {
+        upperDieGeo = createTrapezoidalGeometry(widthM * 0.98, lengthM, 0.03, 8, 0.035);
+      } else {
+        upperDieGeo = new THREE.BoxGeometry(widthM * 0.98, 0.03, lengthM);
+      }
+
+      const upperDieMat = new THREE.MeshStandardMaterial({
+        color: 0x334155, // dark chrome steel upper die plate
+        metalness: 0.9,
+        roughness: 0.2,
+        wireframe: wireframeMode,
+      });
+
+      const upperDieMesh = new THREE.Mesh(upperDieGeo, upperDieMat);
+      upperDieMesh.castShadow = true;
+      upperDieMesh.name = 'Upper Profile Compression Die Plate';
+      upperDieGroup.add(upperDieMesh);
+
+      // Heavy Press Header Crossbeam
+      const headerGeo = new THREE.BoxGeometry(widthM * 1.02, 0.06, lengthM * 0.96);
+      const headerMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8, roughness: 0.3 });
+      const headerMesh = new THREE.Mesh(headerGeo, headerMat);
+      headerMesh.position.set(0, 0.045, 0);
+      upperDieGroup.add(headerMesh);
+
+      // Hydraulic Cylinder Pistons connecting press header to upper framework
+      const pistonGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.3, 16);
+      const pistonMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
+      [-widthM * 0.35, widthM * 0.35].forEach((px) => {
+        [-lengthM * 0.35, lengthM * 0.35].forEach((pz) => {
+          const piston = new THREE.Mesh(pistonGeo, pistonMat);
+          piston.position.set(px, 0.2, pz);
+          upperDieGroup.add(piston);
+        });
+      });
+
+      // Position logic:
+      // In Step 4.3 and Step 5: Upper Die is in CLOSED/COMPRESSED shaping position on top of layup
+      // In Step 6: Upper Die is EXTRACTED (hoisted high up to Y = tableTopY + 1.35)
+      const isExtracted = currentStep === 6;
+      const upperDiePosY = isExtracted
+        ? tableTopY + 1.35
+        : lowerDieTopY + thicknessM + 0.02;
+
+      upperDieGroup.position.set(sideTableX, upperDiePosY, 0);
+      scene.add(upperDieGroup);
+      dieGroupRef.current = upperDieGroup;
+    }
 
     // 2. Mylar Film Roll at head of table (Step 1)
     const mylarRollGroup = new THREE.Group();
@@ -430,8 +475,8 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
     scene.add(mylarRollGroup);
     mylarRollRef.current = mylarRollGroup;
 
-    // 3. Lower Mylar Film Sheet (Step 1+)
-    if (currentStep >= 1) {
+    // 3. Lower Mylar Film Sheet (Step 1+ until detachment in Step 6.2)
+    if (currentStep >= 1 && (currentStep < 6 || activeSubStep === 1)) {
       let actualUnrollLen = totalBedLengthM;
       if (currentStep === 1) {
         actualUnrollLen = activeSubStep >= 3 ? totalBedLengthM : 0;
@@ -458,9 +503,12 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         });
 
         const mylarSheet = new THREE.Mesh(mylarGeo, mylarMat);
-        // Center based on unroll length
+        // Center based on unroll length & sheet transfer state to side table die
         const mylarZ = -totalBedLengthM / 2 + actualUnrollLen / 2;
-        mylarSheet.position.set(0, tableTopY + 0.002, mylarZ);
+        const mylarX = ((currentStep === 4 && activeSubStep >= 3) || currentStep >= 5) ? sideTableX : 0;
+        const mylarY = ((currentStep === 4 && activeSubStep >= 3) || currentStep >= 5) ? lowerDieTopY : tableTopY;
+
+        mylarSheet.position.set(mylarX, mylarY + 0.002, mylarZ);
         mylarSheet.receiveShadow = true;
         mylarSheet.name = 'Lower Mylar Release Film';
         scene.add(mylarSheet);
@@ -468,10 +516,15 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       }
     }
 
-    // 4. Resin Matrix & Fiberglass Layer (Step 3+)
-    if (currentStep >= 3 && currentStep < 5) {
+    // 4. Resin Matrix & Fiberglass Layer (Step 3 through Step 5)
+    if (currentStep >= 3 && currentStep <= 5) {
       const hexColor = getResinHexColor(config.color, config.customHex);
       const transmittanceRatio = materials.lightTransmittancePercent / 100;
+
+      // Calculate sheet X position & base Y height based on transfer to side table die
+      const isTransferredToSideDie = (currentStep === 4 && activeSubStep >= 3) || currentStep === 5;
+      const sheetX = isTransferredToSideDie ? sideTableX : 0;
+      const sheetBaseY = isTransferredToSideDie ? lowerDieTopY : tableTopY;
 
       // Curing visual shift: liquid is more transparent & saturated, cured is harder & glassier
       const baseOpacity = Math.max(0.40, 1.0 - transmittanceRatio * 0.55);
@@ -483,8 +536,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
       // Profile Geometry creation:
       // At Step 3 (Resin & FiberMat Layup), resin is poured flat on the bottom Mylar film.
-      // Profile geometry (7V, 6V, Corrugated, Trapezoidal) is ONLY formed starting at Step 4 when upper die shaping compresses it.
-      // Flat unformed resin matrix width on Mylar paper (leaves a ~20mm margin on each side of the Mylar paper)
+      // Profile geometry (7V, 6V, Corrugated, Trapezoidal) is formed starting at Step 4 when upper die shaping compresses it.
       const flatResinWidthM = mylarWidthM * 0.96;
 
       // Calculate thickness depending on whether lower 50% resin or full resin coat is applied in sub-steps
@@ -514,7 +566,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       });
 
       const resinSheet = new THREE.Mesh(sheetGeo, resinMat);
-      resinSheet.position.set(0, tableTopY + 0.005 + currentThicknessM / 2, 0);
+      resinSheet.position.set(sheetX, sheetBaseY + 0.005 + currentThicknessM / 2, 0);
       resinSheet.castShadow = true;
       resinSheet.receiveShadow = true;
       resinSheet.name = 'FRP Resin & Fiber Layer';
@@ -543,7 +595,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
         const fiberMesh = new THREE.Mesh(fiberGeo, fiberMat);
         // Positioned in the middle of resin matrix
-        fiberMesh.position.set(0, tableTopY + 0.005 + thicknessM * 0.5, 0);
+        fiberMesh.position.set(sheetX, sheetBaseY + 0.005 + thicknessM * 0.5, 0);
         fiberMesh.renderOrder = 2;
         scene.add(fiberMesh);
         fiberTextureRef.current = fiberMesh;
@@ -564,16 +616,21 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         });
 
         const topResinSheet = new THREE.Mesh(topResinGeo, topResinMat);
-        topResinSheet.position.set(0, tableTopY + 0.005 + thicknessM * 0.75 + 0.001, 0);
+        topResinSheet.position.set(sheetX, sheetBaseY + 0.005 + thicknessM * 0.75 + 0.001, 0);
         topResinSheet.name = 'Top 50% Resin Coat (Uppermost Liquid Layer)';
         scene.add(topResinSheet);
       }
     }
 
-    // 5. Top Mylar Film & Sheet Transfer (Step 4)
-    if (currentStep >= 4 && currentStep < 5) {
+    // 5. Top Mylar Film Cover & Sheet Protection (Step 4 & Step 5)
+    if (currentStep >= 4 && currentStep <= 5) {
+      // Calculate sheet X position & base Y height based on transfer to side table die
+      const isTransferredToSideDie = (currentStep === 4 && activeSubStep >= 3) || currentStep === 5;
+      const sheetX = isTransferredToSideDie ? sideTableX : 0;
+      const sheetBaseY = isTransferredToSideDie ? lowerDieTopY : tableTopY;
+
       // Sub-step 4.1+: Top Mylar Roll Assembly at bed head
-      if (activeSubStep >= 1) {
+      if (currentStep === 5 || activeSubStep >= 1) {
         const topRollGroup = new THREE.Group();
         topRollGroup.position.set(0, tableTopY + 0.35, -totalBedLengthM / 2 - 0.1);
 
@@ -601,8 +658,8 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         scene.add(topRollGroup);
       }
 
-      // Sub-step 4.2+: Top Mylar Release Film unrolled over layup
-      if (activeSubStep >= 2) {
+      // Sub-step 4.2+ & Step 5: Top Mylar Release Film unrolled over layup to cover and seal matrix
+      if (currentStep === 5 || activeSubStep >= 2) {
         let topMylarGeo: THREE.BufferGeometry;
         if (config.profile === 'profile_7v') {
           topMylarGeo = create7vOr6vGeometry(mylarWidthM, lengthM, 0.002, 7);
@@ -617,13 +674,13 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
           topMylarGeo.rotateX(-Math.PI / 2);
         }
 
-        // Striking Ice-Cyan Tinted BOPET Film Material
+        // Protective BOPET Release Film Cover Material - covers wet/curing sheet on table
         const topMylarMat = new THREE.MeshPhysicalMaterial({
-          color: 0x38bdf8, // Ice-cyan film glow
+          color: 0x38bdf8, // Ice-cyan film finish
           transparent: true,
-          opacity: xrayMode ? 0.45 : 0.80,
+          opacity: xrayMode ? 0.45 : 0.92,
           roughness: 0.05,
-          transmission: 0.55,
+          transmission: xrayMode ? 0.50 : 0.12,
           reflectivity: 0.98,
           clearcoat: 1.0,
           clearcoatRoughness: 0.02,
@@ -633,8 +690,8 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
 
         const topMylarSheet = new THREE.Mesh(topMylarGeo, topMylarMat);
         // Positioned right on top of resin & fiberglass layup
-        topMylarSheet.position.set(0, tableTopY + 0.008 + thicknessM + 0.003, 0);
-        topMylarSheet.name = 'Top Mylar Release Film (Uppermost Film Layer)';
+        topMylarSheet.position.set(sheetX, sheetBaseY + 0.008 + thicknessM + 0.003, 0);
+        topMylarSheet.name = 'Top Mylar Release Film Cover (Covering Layup)';
         topMylarSheet.renderOrder = 3;
 
         // Glowing Cyan Film Margin Edge Line Highlight
@@ -646,10 +703,36 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         scene.add(topMylarSheet);
         topMylarRef.current = topMylarSheet;
       }
+
+      // Sub-step 4.3: Pneumatic Sheet Transfer Gantry Beam & Upper Compression Tooling on Side Die
+      if (currentStep === 4 && activeSubStep === 3) {
+        const transferGroup = new THREE.Group();
+        transferGroup.name = 'Pneumatic Sheet Transfer Gantry & Clamps';
+
+        // Overhead gantry crossbeam spanning from X=0 to X=sideTableX
+        const gantryBeamGeo = new THREE.BoxGeometry(sideTableX + 0.6, 0.08, lengthM * 0.8);
+        const gantryMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8, roughness: 0.2 });
+        const gantryMesh = new THREE.Mesh(gantryBeamGeo, gantryMat);
+        gantryMesh.position.set(sideTableX / 2, tableTopY + 0.8, 0);
+        transferGroup.add(gantryMesh);
+
+        // Suction cups extending down onto sheet
+        const cupGeo = new THREE.CylinderGeometry(0.05, 0.07, 0.12, 16);
+        const cupMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4 });
+        [-widthM * 0.3, widthM * 0.3].forEach((cx) => {
+          [-lengthM * 0.3, 0, lengthM * 0.3].forEach((cz) => {
+            const cup = new THREE.Mesh(cupGeo, cupMat);
+            cup.position.set(sideTableX + cx, tableTopY + 0.2, cz);
+            transferGroup.add(cup);
+          });
+        });
+
+        scene.add(transferGroup);
+      }
     }
 
-    // 6. Curing & Drying Heat Lamps Bar (Step 4)
-    if (currentStep === 4) {
+    // 6. Curing & Drying Heat Lamps Bar (Step 5)
+    if (currentStep === 5) {
       const lampsGroup = new THREE.Group();
       lampsGroup.name = 'Infrared Curing Heat Lamps';
 
@@ -657,15 +740,15 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       const barGeo = new THREE.BoxGeometry(0.08, 0.08, barLength);
       const barMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 });
       const barMesh = new THREE.Mesh(barGeo, barMat);
-      barMesh.position.set(0, tableTopY + 0.9, 0);
+      barMesh.position.set(sideTableX, tableTopY + 0.9, 0);
       lampsGroup.add(barMesh);
 
-      // Support pillars
+      // Support pillars on side table
       const pillarGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.9, 16);
       const pillarL = new THREE.Mesh(pillarGeo, barMat);
-      pillarL.position.set(0, tableTopY + 0.45, -lengthM / 2);
+      pillarL.position.set(sideTableX, tableTopY + 0.45, -lengthM / 2);
       const pillarR = new THREE.Mesh(pillarGeo, barMat);
-      pillarR.position.set(0, tableTopY + 0.45, lengthM / 2);
+      pillarR.position.set(sideTableX, tableTopY + 0.45, lengthM / 2);
       lampsGroup.add(pillarL, pillarR);
 
       // Glowing IR bulbs
@@ -678,12 +761,12 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         const bz = -lengthM / 2 + (b + 0.5) * (lengthM / bulbCount);
         const bulbGeo = new THREE.SphereGeometry(0.06, 16, 16);
         const bulbMesh = new THREE.Mesh(bulbGeo, bulbMat);
-        bulbMesh.position.set(0, tableTopY + 0.84, bz);
+        bulbMesh.position.set(sideTableX, tableTopY + 0.84, bz);
         lampsGroup.add(bulbMesh);
 
         if (isHeating) {
           const lampLight = new THREE.PointLight(0xff6b00, 1.2, 2.5);
-          lampLight.position.set(0, tableTopY + 0.8, bz);
+          lampLight.position.set(sideTableX, tableTopY + 0.8, bz);
           lampsGroup.add(lampLight);
         }
       }
@@ -692,14 +775,15 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       heatLampsGroupRef.current = lampsGroup;
     }
 
-    // 7. Demolded & Hoisted Finished FRP Sheet (Step 5 & Step 6)
-    if (currentStep >= 5) {
+    // 7. Demolded, Peeled & Hoisted Final 3D Product (Step 6 ONLY)
+    if (currentStep === 6) {
       const hoistedGroup = new THREE.Group();
       hoistedGroup.name = 'Completed FRP Sheet';
 
-      // Elevation height depending on step
-      const elevateY = currentStep === 6 ? tableTopY + 0.65 : tableTopY + 0.25;
-      hoistedGroup.position.set(0, elevateY, 0);
+      // Elevate finished product in Step 6 sub-steps 2 & 3 (Elevation procedure occurs in 6.2)
+      const isElevated = activeSubStep >= 2;
+      const elevateY = isElevated ? tableTopY + 0.65 : lowerDieTopY + thicknessM / 2;
+      hoistedGroup.position.set(sideTableX, elevateY, 0);
 
       const hexColor = getResinHexColor(config.color);
 
@@ -717,7 +801,7 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       }
 
       // Apply flex bending if flexAmount > 0 (Step 6 flex test)
-      if (flexAmount > 0 && currentStep === 6) {
+      if (flexAmount > 0) {
         applyFlexBending(sheetGeo, flexAmount * 0.12, lengthM);
       }
 
@@ -738,95 +822,73 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
       finalSheetMesh.receiveShadow = true;
       hoistedGroup.add(finalSheetMesh);
 
-      // Embedded Fiberglass Strand Layer in Cured/Demolded FRP Sheet
-      const fiberTex = createFiberglassTexture(widthM, lengthM);
-      const fiberOverlayMat = new THREE.MeshStandardMaterial({
-        map: fiberTex,
-        transparent: true,
-        opacity: xrayMode ? 0.98 : 0.85,
-        roughness: 0.2,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
+      // Vacuum Suction Cup Lifters & Crane Arms (Step 6)
+      const lifterBarGeo = new THREE.BoxGeometry(widthM * 0.8, 0.04, lengthM * 0.8);
+      const lifterMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.7 });
+      const lifterMesh = new THREE.Mesh(lifterBarGeo, lifterMat);
+      lifterMesh.position.set(0, thicknessM / 2 + 0.1, 0);
+      hoistedGroup.add(lifterMesh);
+
+      // Suction cups
+      const cupGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.05, 16);
+      const cupMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
+      [-widthM * 0.3, widthM * 0.3].forEach((cx) => {
+        [-lengthM * 0.3, 0, lengthM * 0.3].forEach((cz) => {
+          const cup = new THREE.Mesh(cupGeo, cupMat);
+          cup.position.set(cx, thicknessM / 2 + 0.025, cz);
+          hoistedGroup.add(cup);
+        });
       });
 
-      const fiberOverlayMesh = new THREE.Mesh(sheetGeo.clone(), fiberOverlayMat);
-      fiberOverlayMesh.position.set(0, 0, 0);
-      fiberOverlayMesh.scale.set(1.0008, 1.0008, 1.0008);
-      fiberOverlayMesh.renderOrder = 2;
-      hoistedGroup.add(fiberOverlayMesh);
+      // Side Edge & Longitudinal End Trim Margin Laser Cut Lines
+      const trimLinesGroup = new THREE.Group();
+      trimLinesGroup.name = 'Edge & Length End Trim Guides';
 
-      // Vacuum Suction Cup Lifters & Crane Arms (Step 6)
-      if (currentStep === 6) {
-        const lifterBarGeo = new THREE.BoxGeometry(widthM * 0.8, 0.04, lengthM * 0.8);
-        const lifterMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.7 });
-        const lifterMesh = new THREE.Mesh(lifterBarGeo, lifterMat);
-        lifterMesh.position.set(0, thicknessM / 2 + 0.1, 0);
-        hoistedGroup.add(lifterMesh);
+      // Longitudinal End Trim Cut Lines at both ends
+      [-lengthM / 2, lengthM / 2].forEach((endZ) => {
+        const endLineGeo = new THREE.BoxGeometry(widthM * 1.04, 0.006, 0.01);
+        const endLineMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // emerald end trim line
+        const endLineMesh = new THREE.Mesh(endLineGeo, endLineMat);
+        endLineMesh.position.set(0, thicknessM / 2 + 0.005, endZ);
+        trimLinesGroup.add(endLineMesh);
+      });
 
-        // Suction cups
-        const cupGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.05, 16);
-        const cupMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 });
-        [-widthM * 0.3, widthM * 0.3].forEach((cx) => {
-          [-lengthM * 0.3, 0, lengthM * 0.3].forEach((cz) => {
-            const cup = new THREE.Mesh(cupGeo, cupMat);
-            cup.position.set(cx, thicknessM / 2 + 0.025, cz);
-            hoistedGroup.add(cup);
-          });
-        });
+      // Side Edge Trim Cut Lines at both sides
+      [-widthM / 2, widthM / 2].forEach((sideX) => {
+        const sideLineGeo = new THREE.BoxGeometry(0.01, 0.006, lengthM * 1.02);
+        const sideLineMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b }); // amber side trim line
+        const sideLineMesh = new THREE.Mesh(sideLineGeo, sideLineMat);
+        sideLineMesh.position.set(sideX, thicknessM / 2 + 0.005, 0);
+        trimLinesGroup.add(sideLineMesh);
+      });
 
-        // Side Edge & Longitudinal End Trim Margin Laser Cut Lines
-        const trimLinesGroup = new THREE.Group();
-        trimLinesGroup.name = 'Edge & Length End Trim Guides';
-
-        // Longitudinal End Trim Cut Lines at both ends
-        [-lengthM / 2, lengthM / 2].forEach((endZ) => {
-          const endLineGeo = new THREE.BoxGeometry(widthM * 1.04, 0.006, 0.01);
-          const endLineMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // emerald end trim line
-          const endLineMesh = new THREE.Mesh(endLineGeo, endLineMat);
-          endLineMesh.position.set(0, thicknessM / 2 + 0.005, endZ);
-          trimLinesGroup.add(endLineMesh);
-        });
-
-        // Side Edge Trim Cut Lines at both sides
-        [-widthM / 2, widthM / 2].forEach((sideX) => {
-          const sideLineGeo = new THREE.BoxGeometry(0.01, 0.006, lengthM * 1.02);
-          const sideLineMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b }); // amber side trim line
-          const sideLineMesh = new THREE.Mesh(sideLineGeo, sideLineMat);
-          sideLineMesh.position.set(sideX, thicknessM / 2 + 0.005, 0);
-          trimLinesGroup.add(sideLineMesh);
-        });
-
-        hoistedGroup.add(trimLinesGroup);
-      }
+      hoistedGroup.add(trimLinesGroup);
 
       scene.add(hoistedGroup);
       hoistedSheetGroupRef.current = hoistedGroup;
 
-      // Peeled upper Mylar film curl effect (Step 5)
-      if (currentStep === 5) {
+      // Peeled upper Mylar film curl effect (Shown during active peeling in Step 6 sub-step 1)
+      if (activeSubStep === 1) {
         const peelGeo = new THREE.PlaneGeometry(mylarWidthM, lengthM * 0.5);
         peelGeo.rotateX(-Math.PI / 2.5);
         const peelMat = new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
+          color: 0x38bdf8,
           transparent: true,
-          opacity: 0.5,
+          opacity: 0.6,
           transmission: 0.8,
           side: THREE.DoubleSide,
         });
         const peelMesh = new THREE.Mesh(peelGeo, peelMat);
-        peelMesh.position.set(0, tableTopY + 0.45, lengthM / 4);
+        peelMesh.position.set(sideTableX, lowerDieTopY + 0.15, lengthM / 4);
         scene.add(peelMesh);
         upperMylarPeeledRef.current = peelMesh;
       }
     }
 
-    // Backlight Inspector Light (Underneath table illuminating sheet in Step 6)
+    // Backlight Inspector Light (Underneath side table illuminating sheet in Step 6)
     if (backlightMode && currentStep === 6) {
       const spotLight = new THREE.SpotLight(0xffffff, 10);
-      spotLight.position.set(0, tableTopY - 0.2, 0);
+      spotLight.position.set(sideTableX, tableTopY - 0.2, 0);
       spotLight.angle = Math.PI / 3;
       spotLight.penumbra = 0.5;
       scene.add(spotLight);
