@@ -7,7 +7,136 @@ export interface SubStepInfo {
   subtitle: string;
   description: string;
   badge: string;
+  durationMin: string;
+  cumulativeWindow: string;
+  isPreGel: boolean;
+  phaseCategory: 'prep' | 'pre_gel_critical' | 'forming_cutoff' | 'curing' | 'post_cure';
+  objective: string;
 }
+
+export interface TimingScheduleRow {
+  stepCode: string;
+  stepName: string;
+  duration: string;
+  cumulativeTime: string;
+  category: 'prep' | 'pre_gel_critical' | 'forming_cutoff' | 'gel_transition' | 'thermal_curing' | 'post_cure';
+  categoryLabel: string;
+  criticalObjective: string;
+  mustCompleteBeforeGel: boolean;
+}
+
+export const PROCESS_TIMING_SCHEDULE: TimingScheduleRow[] = [
+  {
+    stepCode: 'Prep (1.1-2.3)',
+    stepName: 'Table Setup & Lower Mylar Tensioning',
+    duration: '3.0 – 5.0 min',
+    cumulativeTime: 'Offline (Pre-Catalyst)',
+    category: 'prep',
+    categoryLabel: 'Preparation',
+    criticalObjective: 'Align modular steel bed & tension bottom release film without wrinkles prior to mixing.',
+    mustCompleteBeforeGel: false,
+  },
+  {
+    stepCode: 'Batch Mix',
+    stepName: 'Resin Compounding & Degassing',
+    duration: '1.5 – 2.0 min',
+    cumulativeTime: 'T = 0:00 → 2:00',
+    category: 'pre_gel_critical',
+    categoryLabel: 'Pre-Gel Liquid Matrix',
+    criticalObjective: 'Blend resin, cobalt accelerator & MEKP catalyst; homogeneous dispersion & air release.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Step 3.1',
+    stepName: 'Lower 50% Resin Matrix Pour',
+    duration: '1.5 – 2.0 min',
+    cumulativeTime: 'T = 2:00 → 4:00',
+    category: 'pre_gel_critical',
+    categoryLabel: 'Pre-Gel Liquid Matrix',
+    criticalObjective: 'Pour and spread first half of catalyzed resin evenly over bottom Mylar substrate.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Step 3.2',
+    stepName: 'FiberMat Reinforcement Layup',
+    duration: '2.0 – 2.5 min',
+    cumulativeTime: 'T = 4:00 → 6:30',
+    category: 'pre_gel_critical',
+    categoryLabel: 'Pre-Gel Wet-Out',
+    criticalObjective: 'Position CSM / woven roving into resin pool; capillary action initiates glass wetting.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Step 3.3',
+    stepName: 'Upper 50% Resin & De-Airing',
+    duration: '2.0 – 2.5 min',
+    cumulativeTime: 'T = 6:30 → 9:00',
+    category: 'pre_gel_critical',
+    categoryLabel: 'Pre-Gel Wet-Out',
+    criticalObjective: 'Apply remaining 50% resin; pass ribbed consolidation rollers to expel all micro-bubbles.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Step 4.1 – 4.2',
+    stepName: 'Top Mylar Unroll & Squeegee Seal',
+    duration: '2.0 – 3.0 min',
+    cumulativeTime: 'T = 9:00 → 12:00',
+    category: 'pre_gel_critical',
+    categoryLabel: 'Pre-Gel Sealing',
+    criticalObjective: 'Unroll upper BOPET film over wet laminate to seal matrix and prevent styrene evaporation.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Step 4.3',
+    stepName: 'Sheet Transfer & Upper Die Compression',
+    duration: '2.5 – 3.5 min',
+    cumulativeTime: 'T = 12:00 → 15:30',
+    category: 'forming_cutoff',
+    categoryLabel: 'Critical Forming Cutoff',
+    criticalObjective: 'Transfer wet laminate to lower profile die and lower upper die / profile weights to shape corrugations.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'FORMING LIMIT',
+    stepName: 'Mandatory Mechanical Forming Cutoff',
+    duration: '—',
+    cumulativeTime: 'T = 15:30 – 16:00',
+    category: 'forming_cutoff',
+    categoryLabel: 'Forming Deadline',
+    criticalObjective: 'All mechanical shaping must be complete. Moving resin beyond this window breaks forming polymer chains.',
+    mustCompleteBeforeGel: true,
+  },
+  {
+    stepCode: 'Gel Transition',
+    stepName: 'Sol-Gel Phase Transition (t_gel)',
+    duration: '3.0 – 5.0 min',
+    cumulativeTime: 'T = 18:00 → 22:00',
+    category: 'gel_transition',
+    categoryLabel: 'Gelation (t_gel)',
+    criticalObjective: 'Free radical crosslinking reaches gel point. Matrix transitions from liquid sol to rigid gel network.',
+    mustCompleteBeforeGel: false,
+  },
+  {
+    stepCode: 'Step 5.1 – 5.3',
+    stepName: 'Thermal Drying Oven & Peak Exotherm',
+    duration: '25 – 45 min',
+    cumulativeTime: 'T = 22:00 → 65:00',
+    category: 'thermal_curing',
+    categoryLabel: 'Thermal Curing',
+    criticalObjective: 'IR & convection heat (50-80°C) accelerates exothermic crosslinking to full Barcol hardness (≥40).',
+    mustCompleteBeforeGel: false,
+  },
+  {
+    stepCode: 'Step 6.1 – 6.3',
+    stepName: 'Demolding, Trimming & 3D Render',
+    duration: 'Post-Cure',
+    cumulativeTime: 'T > 65:00',
+    category: 'post_cure',
+    categoryLabel: 'Finishing',
+    criticalObjective: 'Strip Mylar films, elevate cured FRP sheet with vacuum lifters, saw-cut margins & render final 3D product.',
+    mustCompleteBeforeGel: false,
+  },
+];
 
 export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
   1: [
@@ -18,6 +147,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: '900 x 1200 x 1800mm Base Units',
       description: 'Align primary 900x1200x1800mm modular steel bed units to target sheet length.',
       badge: 'Base Bed',
+      durationMin: '1.0 – 1.5 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Mechanical table positioning before resin catalyzed',
     },
     {
       stepId: 1,
@@ -26,6 +160,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Tooling & Die Staging Bed',
       description: 'Position matching secondary side table unit aside for lower profile die preparation.',
       badge: 'Side Table',
+      durationMin: '1.0 – 1.5 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Ready adjacent die staging table for seamless sheet transfer',
     },
     {
       stepId: 1,
@@ -34,6 +173,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Width Rail & Stop Calibration',
       description: 'Calibrate precision table levelness (<0.5mm/m) and adjust width guide stop rails.',
       badge: 'Calibrated',
+      durationMin: '1.0 – 2.0 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Ensure zero slope & locked width rails',
     },
   ],
   2: [
@@ -44,6 +188,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'BOPET Release Film Dispenser',
       description: 'Mount bottom release film roll at bed head on tension unwind shaft.',
       badge: 'Roll Mounted',
+      durationMin: '1.0 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Secure carrier film roll on low-friction unwind axle',
     },
     {
       stepId: 2,
@@ -52,6 +201,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Progressive Bed Covering',
       description: 'Unroll lower Mylar paper smoothly over table surface along full length.',
       badge: 'Unrolling',
+      durationMin: '1.5 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Extend clean release substrate over manufacturing line',
     },
     {
       stepId: 2,
@@ -60,6 +214,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Wrinkle-Free Film Bed',
       description: 'Lock tension brakes to ensure lower Mylar film lies flat without wrinkles.',
       badge: 'Substrate Ready',
+      durationMin: '1.0 min',
+      cumulativeWindow: 'Pre-Catalyst Prep',
+      isPreGel: true,
+      phaseCategory: 'prep',
+      objective: 'Lock bottom film tension to eliminate ripples before resin contact',
     },
   ],
   3: [
@@ -70,6 +229,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Base Resin Matrix Coating',
       description: 'Pour first 50% catalyzed polyester/vinyl ester liquid resin mix over lower Mylar.',
       badge: 'Resin Base',
+      durationMin: '1.5 – 2.0 min',
+      cumulativeWindow: 'T = 2:00 → 4:00',
+      isPreGel: true,
+      phaseCategory: 'pre_gel_critical',
+      objective: 'Distribute base resin bed uniformly across bottom Mylar',
     },
     {
       stepId: 3,
@@ -78,6 +242,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Glass CSM / Woven Roving Layer',
       description: 'Impregnate glass fiber mat (CSM 450/600) into initial resin matrix bath.',
       badge: 'Glass Fiber',
+      durationMin: '2.0 – 2.5 min',
+      cumulativeWindow: 'T = 4:00 → 6:30',
+      isPreGel: true,
+      phaseCategory: 'pre_gel_critical',
+      objective: 'Lay fiberglass strands; allow resin wicking & initial saturation',
     },
     {
       stepId: 3,
@@ -86,6 +255,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Complete Matrix Wet-Out',
       description: 'Pour remaining 50% resin mix over fiberglass to ensure complete glass wet-out.',
       badge: 'Full Matrix',
+      durationMin: '2.0 – 2.5 min',
+      cumulativeWindow: 'T = 6:30 → 9:00',
+      isPreGel: true,
+      phaseCategory: 'pre_gel_critical',
+      objective: 'Apply remaining resin; pass ribbed roller to expel all air bubbles',
     },
   ],
   4: [
@@ -96,6 +270,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Upper Release Film Dispenser',
       description: 'Stage upper BOPET film roll at machine head above resin impregnator.',
       badge: 'Top Roll',
+      durationMin: '1.0 min',
+      cumulativeWindow: 'T = 9:00 → 10:00',
+      isPreGel: true,
+      phaseCategory: 'pre_gel_critical',
+      objective: 'Align top release film dispenser directly over wet resin layup',
     },
     {
       stepId: 4,
@@ -104,6 +283,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Ice-Cyan Top Mylar Layer',
       description: 'Unroll top Mylar release film over liquid resin/fiber layup to seal matrix.',
       badge: 'Top Mylar',
+      durationMin: '1.5 – 2.0 min',
+      cumulativeWindow: 'T = 10:00 → 12:00',
+      isPreGel: true,
+      phaseCategory: 'pre_gel_critical',
+      objective: 'Seal liquid resin core and suppress styrene vapor release',
     },
     {
       stepId: 4,
@@ -112,6 +296,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Side Tooling Profile Staging',
       description: 'Transfer prepared FRP plain sheet assembly onto lower profile die on side table.',
       badge: 'Sheet Transferred',
+      durationMin: '2.5 – 3.5 min',
+      cumulativeWindow: 'T = 12:00 → 15:30 (CUTOFF)',
+      isPreGel: true,
+      phaseCategory: 'forming_cutoff',
+      objective: 'Transfer and compress with upper die BEFORE gelation onset at 18 min',
     },
   ],
   5: [
@@ -122,6 +311,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Enclosed Thermal Tunnel',
       description: 'Guide sheet assembly into temperature-controlled thermal drying oven zone.',
       badge: 'In Oven',
+      durationMin: '2.0 – 3.0 min',
+      cumulativeWindow: 'T = 22:00 → 25:00',
+      isPreGel: false,
+      phaseCategory: 'curing',
+      objective: 'Introduce corrugated laminate into 50–80°C heating chamber',
     },
     {
       stepId: 5,
@@ -130,6 +324,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'IR Heating & Gelation',
       description: 'Activate top & bottom IR lamps to ramp temperature to target 50-80°C.',
       badge: 'IR Lamps ON',
+      durationMin: '10 – 15 min',
+      cumulativeWindow: 'T = 25:00 → 40:00',
+      isPreGel: false,
+      phaseCategory: 'curing',
+      objective: 'Thermal energy drives catalyst decomposition & radical initiation',
     },
     {
       stepId: 5,
@@ -138,6 +337,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Thermoset Polymer Cure',
       description: 'Crosslink polymer matrix through exotherm reaction for full mechanical strength.',
       badge: 'Cured',
+      durationMin: '15 – 25 min',
+      cumulativeWindow: 'T = 40:00 → 65:00',
+      isPreGel: false,
+      phaseCategory: 'curing',
+      objective: 'Achieve complete crosslink density and Barcol hardness ≥40',
     },
   ],
   6: [
@@ -148,6 +352,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Upper Film Stripping',
       description: 'Strip away top protective Mylar film from cured FRP sheet surface.',
       badge: 'Top Film Off',
+      durationMin: '1.0 – 2.0 min',
+      cumulativeWindow: 'Post-Cure (T > 65m)',
+      isPreGel: false,
+      phaseCategory: 'post_cure',
+      objective: 'Expose smooth high-gloss cured FRP top profile surface',
     },
     {
       stepId: 6,
@@ -156,6 +365,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Demolding & Bottom Film Peel',
       description: 'Lift FRP sheet using vacuum suction cups and peel off bottom substrate Mylar.',
       badge: 'Demolded',
+      durationMin: '2.0 – 3.0 min',
+      cumulativeWindow: 'Post-Cure (T > 65m)',
+      isPreGel: false,
+      phaseCategory: 'post_cure',
+      objective: 'Elevate finished corrugated sheet and release bottom carrier film',
     },
     {
       stepId: 6,
@@ -164,6 +378,11 @@ export const SUB_STEPS_DATA: Record<StepNumber, SubStepInfo[]> = {
       subtitle: 'Circular Diamond Saw Cuts',
       description: 'Trim rough side and end margins to achieve ultimate clean finished dimensions.',
       badge: 'Trimmed Product',
+      durationMin: '3.0 – 5.0 min',
+      cumulativeWindow: 'Post-Cure (T > 65m)',
+      isPreGel: false,
+      phaseCategory: 'post_cure',
+      objective: 'Precision diamond blade edge trimming to final drawing dimensions',
     },
   ],
 };

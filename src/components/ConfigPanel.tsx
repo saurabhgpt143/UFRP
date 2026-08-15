@@ -62,6 +62,7 @@ interface ConfigPanelProps {
   onDemoldAndLift: () => void;
   onOpenReportModal: () => void;
   onOpenMechanism?: () => void;
+  onOpenTimingModal?: () => void;
   onOpenThermalPrint?: () => void;
   onOpenRateModal?: () => void;
 }
@@ -88,6 +89,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   onDemoldAndLift,
   onOpenReportModal,
   onOpenMechanism,
+  onOpenTimingModal,
   onOpenThermalPrint,
   onOpenRateModal,
 }) => {
@@ -1439,19 +1441,34 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <div>
                     <strong>Chemistry Note:</strong> Cobalt Octoate (6% cobalt metal) accelerates room-temperature cleavage of MEKP oxygen-oxygen bonds via a redox catalytic cycle, enabling polymer matrix crosslinking at ambient temperatures ({materials.ambientTempC}°C) without external oven heating.
                   </div>
-                  {onOpenMechanism && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        soundFx.playClick();
-                        onOpenMechanism();
-                      }}
-                      className="w-full py-1.5 px-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 rounded flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold transition-all shadow-sm"
-                    >
-                      <Atom className="w-3.5 h-3.5 text-indigo-300 animate-spin-slow" />
-                      <span>View Stage-by-Stage Reaction Mechanism</span>
-                    </button>
-                  )}
+                  <div className="flex flex-col sm:flex-row gap-1.5">
+                    {onOpenTimingModal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playClick();
+                          onOpenTimingModal();
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold transition-all shadow-sm"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <span>⏱️ Step Timing & Gel Window</span>
+                      </button>
+                    )}
+                    {onOpenMechanism && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundFx.playClick();
+                          onOpenMechanism();
+                        }}
+                        className="flex-1 py-1.5 px-2 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 rounded flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold transition-all shadow-sm"
+                      >
+                        <Atom className="w-3.5 h-3.5 text-indigo-300 animate-spin-slow" />
+                        <span>Reaction Mechanism</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -8,7 +8,11 @@ import {
   CheckCircle2,
   ChevronRight,
   ArrowRight,
-  Settings2
+  Settings2,
+  Clock,
+  Zap,
+  Flame,
+  AlertTriangle
 } from 'lucide-react';
 import { FRPConfig, StepNumber, WorkflowStep } from '../types';
 import { STEP_ALTERNATIVE_OPTIONS } from '../data/processOptions';
@@ -21,15 +25,25 @@ interface StepWorkflowProps {
   onSelectSubStep?: (subStep: number) => void;
   curingProgress: number;
   config?: FRPConfig;
+  onOpenTimingModal?: () => void;
 }
 
-export const stepsData: WorkflowStep[] = [
+export const stepsData: (WorkflowStep & {
+  stepDuration: string;
+  cumulativeTime: string;
+  isPreGel: boolean;
+  timingTag: string;
+})[] = [
   {
     id: 1,
     title: 'Table & Modular Setup',
     subtitle: '900 x 1200 x 1800mm Modular Bed',
     description: 'Select target sheet length & width. System automatically aligns 900x1200x1800mm manufacturing table units, with a matching table arranged aside for die preparation and tooling staging.',
     iconName: 'Grid',
+    stepDuration: '3.0 – 5.0 min',
+    cumulativeTime: 'Offline Prep',
+    isPreGel: true,
+    timingTag: 'Pre-Catalyst',
   },
   {
     id: 2,
@@ -37,6 +51,10 @@ export const stepsData: WorkflowStep[] = [
     subtitle: 'Width & Film Thickness',
     description: 'Select BOPET Mylar film specifications matching sheet dimensions. Following table setup, only bottom Mylar paper is unrolled onto the table.',
     iconName: 'Scroll',
+    stepDuration: '3.0 – 3.5 min',
+    cumulativeTime: 'Offline Prep',
+    isPreGel: true,
+    timingTag: 'Pre-Catalyst',
   },
   {
     id: 3,
@@ -44,6 +62,10 @@ export const stepsData: WorkflowStep[] = [
     subtitle: 'Base Resin, FiberMat & Top 50% Resin',
     description: 'Subsequent to bottom Mylar application, prepare initial 50% resin mixture, incorporate FiberMat over the mixture, and subsequently apply the remaining 50% resin mixture over the fiberglass in a separate step.',
     iconName: 'Pipette',
+    stepDuration: '5.5 – 7.0 min',
+    cumulativeTime: 'T = 0:00 → 9:00',
+    isPreGel: true,
+    timingTag: 'Pre-Gel Wet-Out',
   },
   {
     id: 4,
@@ -51,6 +73,10 @@ export const stepsData: WorkflowStep[] = [
     subtitle: 'Sheet Transfer, Upper Die & Compression',
     description: 'Unroll upper Mylar film over resin. Transfer the prepared FRP plain sheet assembly to the lower die on the side table, lower the upper die for profile shaping, and apply compression load.',
     iconName: 'Layers',
+    stepDuration: '5.5 – 6.5 min',
+    cumulativeTime: 'T = 9:00 → 15:30 (CUTOFF)',
+    isPreGel: true,
+    timingTag: 'Pre-Gel Clamping',
   },
   {
     id: 5,
@@ -58,6 +84,10 @@ export const stepsData: WorkflowStep[] = [
     subtitle: 'Thermal Control & Exotherm Reaction',
     description: 'Transfer sheet assembly to drying table zone. Monitor temperature curve, resin gelation, and curing progress.',
     iconName: 'Thermometer',
+    stepDuration: '25 – 45 min',
+    cumulativeTime: 'T = 22:00 → 65:00',
+    isPreGel: false,
+    timingTag: 'Thermal Curing',
   },
   {
     id: 6,
@@ -65,6 +95,10 @@ export const stepsData: WorkflowStep[] = [
     subtitle: 'Demolding, Margin Trimming & Final 3D Product Rendering',
     description: 'Subsequent to drying, remove weights, lift off upper die, remove top Mylar, elevate FRP sheet, detach lower Mylar substrate, trim margins for a smooth finish, and inspect the final 3D product rendering.',
     iconName: 'CheckCircle2',
+    stepDuration: '6.0 – 10 min',
+    cumulativeTime: 'Post-Cure (T > 65m)',
+    isPreGel: false,
+    timingTag: 'Finished Product',
   },
 ];
 
@@ -75,6 +109,7 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
   onSelectSubStep,
   curingProgress,
   config,
+  onOpenTimingModal,
 }) => {
   return (
     <div className="w-full bg-slate-900 border-r border-slate-800 p-4 flex flex-col gap-3 h-full overflow-y-auto font-sans">
@@ -88,6 +123,24 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
           </span>
         </div>
 
+        {/* Quick Timing & Pre-Gel Schedule Button */}
+        {onOpenTimingModal && (
+          <button
+            type="button"
+            onClick={onOpenTimingModal}
+            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all text-xs font-mono font-semibold group shadow-sm"
+            title="Open Complete Process Timing & Gel Window Schedule"
+          >
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400 group-hover:animate-spin-slow" />
+              <span>⏱️ Gel Timing Schedule</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200">
+              t_gel: ~20m
+            </span>
+          </button>
+        )}
+
         {/* Streamlined Step Dropdown Selector Interface */}
         <div className="relative w-full">
           <label htmlFor="step-dropdown-select" className="sr-only">Select Manufacturing Step</label>
@@ -99,7 +152,7 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
           >
             {stepsData.map((s) => (
               <option key={s.id} value={s.id} className="bg-slate-900 text-white font-sans text-xs">
-                Step {s.id}: {s.title}
+                Step {s.id}: {s.title} ({s.stepDuration})
               </option>
             ))}
           </select>
@@ -164,13 +217,28 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
                   </h3>
                   {isActive && <ChevronRight className="w-4 h-4 text-blue-400 shrink-0" />}
                 </div>
+
                 <p className="text-[11px] font-medium text-slate-400 truncate mt-0.5">
                   {step.subtitle}
                 </p>
 
-                {/* Active Method Badge */}
-                {activeOpt && (
-                  <div className="mt-1.5 flex items-center gap-1">
+                {/* Timing & Duration Badge */}
+                <div className="mt-1.5 flex items-center flex-wrap gap-1">
+                  <span className={`text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border truncate flex items-center gap-1 ${
+                    step.isPreGel && step.id >= 3
+                      ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                      : step.id === 5
+                      ? 'bg-red-950/80 text-red-300 border-red-500/40'
+                      : 'bg-slate-900 text-slate-300 border-slate-800'
+                  }`}>
+                    <Clock className="w-2.5 h-2.5" />
+                    <span>{step.stepDuration}</span>
+                    <span className="text-slate-400">|</span>
+                    <span>{step.cumulativeTime}</span>
+                  </span>
+
+                  {/* Active Method Badge */}
+                  {activeOpt && (
                     <span
                       className={`text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded border truncate ${
                         activeOpt.typeBadge === 'Standard Default'
@@ -180,15 +248,30 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
                     >
                       {activeOpt.shortLabel}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Sequential Sub-steps breakdown for active step */}
                 {isActive && SUB_STEPS_DATA[step.id as StepNumber] && (
                   <div className="mt-2.5 pt-2 border-t border-blue-500/20 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[9px] font-mono font-bold text-blue-400 uppercase tracking-wider">
-                      Sequential Sub-steps
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono font-bold text-blue-400 uppercase tracking-wider">
+                        Sequential Sub-steps
+                      </span>
+                      {onOpenTimingModal && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenTimingModal();
+                          }}
+                          className="text-[9px] font-mono text-amber-400 hover:underline flex items-center gap-0.5"
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>Timing Details</span>
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1">
                       {SUB_STEPS_DATA[step.id as StepNumber].map((sub) => {
                         const isSubSel = sub.subStepId === activeSubStep;
@@ -200,14 +283,15 @@ export const StepWorkflow: React.FC<StepWorkflowProps> = ({
                               e.stopPropagation();
                               if (onSelectSubStep) onSelectSubStep(sub.subStepId);
                             }}
-                            className={`flex-1 py-0.5 text-[10px] font-mono font-bold rounded transition-all text-center ${
+                            className={`flex-1 py-1 text-[10px] font-mono font-bold rounded transition-all text-center flex flex-col items-center justify-center leading-tight ${
                               isSubSel
                                 ? 'bg-blue-500 text-white shadow-sm ring-1 ring-blue-300'
                                 : 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800'
                             }`}
-                            title={sub.title}
+                            title={`${sub.title} (${sub.durationMin}) - ${sub.description}`}
                           >
-                            {step.id}.{sub.subStepId}
+                            <span>{step.id}.{sub.subStepId}</span>
+                            <span className="text-[8px] font-normal opacity-80">{sub.durationMin.split(' ')[0]}m</span>
                           </button>
                         );
                       })}
@@ -256,6 +340,7 @@ export const MobileStepBar: React.FC<StepWorkflowProps> = ({
   activeSubStep = 3,
   onSelectStep,
   onSelectSubStep,
+  onOpenTimingModal,
 }) => {
   return (
     <div className="w-full bg-slate-900 border-b border-slate-800 px-3 py-2 flex flex-col gap-1.5 shrink-0 z-10 font-sans lg:hidden">
@@ -271,7 +356,7 @@ export const MobileStepBar: React.FC<StepWorkflowProps> = ({
           >
             {stepsData.map((s) => (
               <option key={s.id} value={s.id} className="bg-slate-900 text-white font-sans text-xs">
-                Step {s.id}: {s.title}
+                Step {s.id}: {s.title} ({s.stepDuration})
               </option>
             ))}
           </select>
@@ -279,6 +364,18 @@ export const MobileStepBar: React.FC<StepWorkflowProps> = ({
             ▼
           </div>
         </div>
+
+        {/* Gel Timing Modal Trigger */}
+        {onOpenTimingModal && (
+          <button
+            onClick={onOpenTimingModal}
+            className="px-2 py-1 text-[10px] font-mono font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0 flex items-center gap-1"
+            title="Open Gel Timing Schedule"
+          >
+            <Clock className="w-3 h-3 text-amber-400" />
+            <span>⏱️ Timing</span>
+          </button>
+        )}
 
         {/* Prev / Next Buttons */}
         <div className="flex items-center gap-1.5 shrink-0">
@@ -311,13 +408,15 @@ export const MobileStepBar: React.FC<StepWorkflowProps> = ({
                   key={sub.subStepId}
                   type="button"
                   onClick={() => onSelectSubStep && onSelectSubStep(sub.subStepId)}
-                  className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all ${
+                  className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-all flex items-center gap-1 ${
                     isSubSel
                       ? 'bg-blue-500 text-white ring-1 ring-blue-300'
                       : 'bg-slate-950 text-slate-400 border border-slate-800'
                   }`}
+                  title={`${sub.title} (${sub.durationMin})`}
                 >
-                  {currentStep}.{sub.subStepId}
+                  <span>{currentStep}.{sub.subStepId}</span>
+                  <span className="text-[8px] opacity-75">({sub.durationMin.split(' ')[0]}m)</span>
                 </button>
               );
             })}

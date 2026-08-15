@@ -17,6 +17,7 @@ interface MetricsBarProps {
   materials: MaterialCalculations;
   curingProgress: number;
   onOpenRateModal?: () => void;
+  onOpenTimingModal?: () => void;
 }
 
 export const MetricsBar: React.FC<MetricsBarProps> = ({
@@ -25,6 +26,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
   materials,
   curingProgress,
   onOpenRateModal,
+  onOpenTimingModal,
 }) => {
   return (
     <div className="w-full bg-slate-950 border-t border-slate-800 px-3 sm:px-4 py-2 sm:py-3 flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-between gap-3 sm:gap-4 overflow-x-auto scrollbar-none snap-x text-xs z-10 font-sans shrink-0">
@@ -84,15 +86,25 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
         </div>
       </div>
 
-      {/* Curing & Flex stiffness */}
-      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 snap-start bg-slate-900/80 sm:bg-transparent p-2 sm:p-0 border sm:border-0 border-slate-800 rounded-xl">
+      {/* Curing & Gel Time metric */}
+      <div
+        onClick={onOpenTimingModal}
+        className={`flex items-center gap-2.5 sm:gap-3 shrink-0 snap-start bg-slate-900/80 sm:bg-transparent p-2 sm:p-0 border sm:border-0 border-slate-800 rounded-xl ${
+          onOpenTimingModal ? 'cursor-pointer hover:bg-slate-900/90 hover:border-purple-500/40 transition-all' : ''
+        }`}
+        title="Click to view Process Timing & Gel Window Schedule"
+      >
         <div className="p-1.5 sm:p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
           <Thermometer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
         <div>
-          <div className="text-[9px] sm:text-[10px] uppercase font-mono font-bold text-slate-400 whitespace-nowrap">Cobalt @ Ambient ({materials.ambientTempC}°C)</div>
-          <div className="font-bold text-purple-300 font-mono mt-0.5 text-[11px] sm:text-xs whitespace-nowrap">
-            {materials.cobaltPercent}% Cobalt <span className="text-slate-400 font-normal">(~{materials.estimatedGelTimeMin} min Gel)</span>
+          <div className="text-[9px] sm:text-[10px] uppercase font-mono font-bold text-slate-400 whitespace-nowrap flex items-center gap-1">
+            <span>Cobalt @ Ambient ({materials.ambientTempC}°C)</span>
+            {onOpenTimingModal && <span className="text-[9px] text-purple-400 font-normal hover:underline">(Timing)</span>}
+          </div>
+          <div className="font-bold text-purple-300 font-mono mt-0.5 text-[11px] sm:text-xs whitespace-nowrap flex items-center gap-1.5">
+            <span>{materials.cobaltPercent}% Cobalt</span>
+            <span className="text-amber-300 bg-amber-950/70 px-1 py-0.2 rounded border border-amber-500/30 text-[10px]">~{materials.estimatedGelTimeMin}m Gel</span>
           </div>
         </div>
       </div>

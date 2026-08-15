@@ -14,7 +14,8 @@ import {
   Printer,
   IndianRupee,
   Download,
-  Smartphone
+  Smartphone,
+  Clock
 } from 'lucide-react';
 import { FRPConfig } from '../types';
 import { soundFx } from '../utils/soundEffects';
@@ -28,6 +29,7 @@ interface HeaderProps {
   onToggleSound: () => void;
   onOpenReport: () => void;
   onOpenMechanism?: () => void;
+  onOpenTimingModal?: () => void;
   onOpenShare?: () => void;
   onOpenThermalPrint?: () => void;
   onOpenRateModal?: () => void;
@@ -43,6 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSound,
   onOpenReport,
   onOpenMechanism,
+  onOpenTimingModal,
   onOpenShare,
   onOpenThermalPrint,
   onOpenRateModal,
@@ -160,6 +163,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Atom className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 animate-spin-slow" />
             <span>Reaction Mechanism</span>
+          </button>
+        )}
+
+        {/* Process Timing & Gel Window Schedule Button */}
+        {onOpenTimingModal && (
+          <button
+            onClick={onOpenTimingModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all shadow-sm"
+            title="Open Process Timing & Gel Window Schedule"
+          >
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse" />
+            <span>Gel Timing<span className="hidden sm:inline"> Schedule</span></span>
           </button>
         )}
 

@@ -10,6 +10,7 @@ import { DryingGraph } from './components/DryingGraph';
 import { Product3DRenderer } from './components/Product3DRenderer';
 import { InspectionModal } from './components/InspectionModal';
 import { ReactionMechanismModal } from './components/ReactionMechanismModal';
+import { ProcessTimingModal } from './components/ProcessTimingModal';
 import { ShareProductModal } from './components/ShareProductModal';
 import { ThermalPrintModal } from './components/ThermalPrintModal';
 import { RateAdjustmentModal } from './components/RateAdjustmentModal';
@@ -71,6 +72,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   const [isMechanismOpen, setIsMechanismOpen] = useState<boolean>(false);
+  const [isTimingOpen, setIsTimingOpen] = useState<boolean>(false);
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isThermalPrintOpen, setIsThermalPrintOpen] = useState<boolean>(false);
   const [isRateModalOpen, setIsRateModalOpen] = useState<boolean>(false);
@@ -222,6 +224,7 @@ export default function App() {
         }}
         onOpenReport={() => setIsReportOpen(true)}
         onOpenMechanism={() => setIsMechanismOpen(true)}
+        onOpenTimingModal={() => setIsTimingOpen(true)}
         onOpenShare={() => setIsShareOpen(true)}
         onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
         onOpenRateModal={() => setIsRateModalOpen(true)}
@@ -256,6 +259,7 @@ export default function App() {
           }}
           curingProgress={curingProgress}
           config={config}
+          onOpenTimingModal={() => setIsTimingOpen(true)}
         />
 
         {/* Left Sidebar: Step Workflow Navigation (Desktop) */}
@@ -270,6 +274,7 @@ export default function App() {
             }}
             curingProgress={curingProgress}
             config={config}
+            onOpenTimingModal={() => setIsTimingOpen(true)}
           />
         </div>
 
@@ -402,6 +407,7 @@ export default function App() {
             }}
             onOpenReportModal={() => setIsReportOpen(true)}
             onOpenMechanism={() => setIsMechanismOpen(true)}
+            onOpenTimingModal={() => setIsTimingOpen(true)}
             onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
             onOpenRateModal={() => setIsRateModalOpen(true)}
           />
@@ -415,6 +421,7 @@ export default function App() {
         materials={materials}
         curingProgress={curingProgress}
         onOpenRateModal={() => setIsRateModalOpen(true)}
+        onOpenTimingModal={() => setIsTimingOpen(true)}
       />
 
       {/* Inspection Certificate Modal */}
@@ -434,6 +441,15 @@ export default function App() {
         onClose={() => setIsMechanismOpen(false)}
         config={config}
         materials={materials}
+      />
+
+      {/* Process Timing & Gel Window Schedule Modal */}
+      <ProcessTimingModal
+        isOpen={isTimingOpen}
+        onClose={() => setIsTimingOpen(false)}
+        config={config}
+        materials={materials}
+        tableSpec={tableSpec}
       />
 
       {/* Share Product & 3D Spec Modal */}
