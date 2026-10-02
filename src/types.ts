@@ -1,8 +1,25 @@
 export type ProfileType = 'flat' | 'corrugated_sinusoidal' | 'trapezoidal_rib' | 'profile_7v' | 'profile_6v' | 'curved';
 
-export type ResinColor = 'crystal_transparent' | 'translucent_clear' | 'sky_blue' | 'opal_white' | 'emerald_green' | 'amber' | 'carbon_black' | 'custom';
+export type ResinColor =
+  | 'crystal_transparent'
+  | 'translucent_clear'
+  | 'sky_blue'
+  | 'opal_white'
+  | 'emerald_green'
+  | 'amber'
+  | 'carbon_black'
+  | 'ral_violet'
+  | 'ral_indigo'
+  | 'ral_blue'
+  | 'ral_green'
+  | 'ral_yellow'
+  | 'ral_orange'
+  | 'ral_red'
+  | 'custom';
 
 export type ResinType = 'orthophthalic' | 'isophthalic' | 'dicyclopentadiene' | 'vinyl_ester' | 'acrylic_modified';
+
+export type UVStabilizerType = 'synergistic_uva_hals' | 'benzotriazole_tinuvin_326' | 'hals_tinuvin_770' | 'cyasorb_uv531' | 'none';
 
 export type GlassFiberType = 'csm_300' | 'csm_450' | 'csm_600' | 'woven_roving_600' | 'multiaxial_800';
 
@@ -19,6 +36,9 @@ export interface FRPConfig {
   color: ResinColor;
   customHex?: string;      // Custom pigment HEX color e.g. "#a855f7"
   customBaseTransmittance?: number; // Custom base light transmittance % (0-100)
+  ralCode?: string;        // RAL color code e.g. "RAL 4008"
+  ralName?: string;        // RAL standard name e.g. "Signal Violet"
+  ralHue?: 'violet' | 'indigo' | 'blue' | 'green' | 'yellow' | 'orange' | 'red'; // Primary hue category
   resinType?: ResinType;   // Orthophthalic, Isophthalic, DCPD, Vinyl Ester, Acrylic Modified
   pigmentPercent?: number;  // Pigment concentration (0.0% to 5.0%)
   fiberType: GlassFiberType;
@@ -34,6 +54,9 @@ export interface FRPConfig {
   catalystPercent: number; // 1.0 to 3.0% MEKP
   cobaltPercent?: number;  // 0.05 to 0.50% Cobalt Naphthenate / Octoate Promoter
   ambientTempC?: number;   // 15°C to 45°C ambient shop floor temperature
+  styreneDiluentPercent?: number; // 0.0% to 10.0% phr additional reactive styrene monomer diluent
+  uvStabilizerType?: UVStabilizerType; // UV Stabilizer additive package selection
+  uvStabilizerPercent?: number;   // 0.0% to 1.0% phr UV absorber / HALS loading
   fillerType?: 'none' | 'calcium_carbonate' | 'ath_flame_retardant' | 'silica_powder';
   fillerPercent?: number;  // 0 to 40% phr (parts per hundred resin)
   dryingTempC: number;     // 25 to 80°C
@@ -119,6 +142,27 @@ export interface MaterialCalculations {
   fillerWeightGrams: number;
   fillerCostUsdKg: number;
   fillerEffectNote: string;
+  // Styrene Reactive Diluent Monomer
+  styreneDiluentPercent: number;
+  styreneMonomerWeightKg: number;
+  styreneMonomerWeightGrams: number;
+  styreneRecommendation: string;
+  styreneStatus: 'none' | 'optimal' | 'excessive';
+  // UV Stabilizer Protection System
+  uvStabilizerType: UVStabilizerType;
+  uvStabilizerPercent: number;
+  uvStabilizerWeightGrams: number;
+  uvStabilizerWeightKg: number;
+  uvStabilizerGrams: number; // for backward compatibility with ThermalPrintModal
+  uvRecommendation: string;
+  uvProtectionLevel: 'none' | 'standard' | 'high' | 'maximum';
+  yellowingIndexProjection: {
+    year0: number;
+    year5: number;
+    year10: number;
+    year15: number;
+    year20: number;
+  };
   pigmentPercent: number;
   pigmentWeightGrams: number;
   pigmentWeightKg: number;
@@ -147,6 +191,15 @@ export interface MaterialCalculations {
   lightTransmittancePercent: number;
   peakExothermTempC: number;
   lifespanProjection: LifespanProjection;
+  ralSpec?: {
+    code: string;
+    name: string;
+    primaryHue: string;
+    hueLabel: string;
+    hex: string;
+    bisCode: string;
+    description: string;
+  };
   resinTypeSpec: {
     typeKey: ResinType;
     name: string;

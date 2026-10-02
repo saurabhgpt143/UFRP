@@ -88,7 +88,9 @@ export const ThermalPrintModal: React.FC<ThermalPrintModalProps> = ({
     operatorName,
     profileName: config.profile.toUpperCase().replace(/_/g, ' '),
     dimensionsStr: `${config.widthMm}W × ${config.lengthMm}L × ${config.thicknessMm}T mm`,
-    colorStr: config.color.toUpperCase().replace(/_/g, ' '),
+    colorStr: config.ralCode
+      ? `${config.ralCode} ${config.ralName ? config.ralName.toUpperCase() : ''} [${(config.ralHue || 'RAL').toUpperCase()}]`
+      : config.color.toUpperCase().replace(/_/g, ' '),
     transmittancePercent: materials.lightTransmittancePercent,
     resinTypeStr: (config.resinType || 'orthophthalic').toUpperCase(),
     batchScaleLabel: batchScaleKg === 0 ? 'SINGLE SHEET' : `${batchScaleKg} KG RESIN DRUM`,
@@ -228,8 +230,8 @@ EXACT CHEMICAL DOSING RECIPE:
 3. COBALT PROMOTER : ${scaledCobaltMl.toFixed(1)} mL (${scaledCobaltGrams.toFixed(1)} g) [@ ${(config.cobaltPercent ?? 0.2)}% PHR]
 4. PIGMENT PASTE   : ${scaledPigmentGrams.toFixed(1)} g  [@ ${materials.pigmentPercent}% PHR]
 5. MINERAL FILLER  : ${scaledFillerKg > 0 ? `${scaledFillerKg.toFixed(2)} KG` : 'N/A'} [${config.fillerType ?? 'None'}]
-6. STYRENE DILUENT : ${scaledStyreneGrams.toFixed(1)} g
-7. UV STABILIZER   : ${scaledUvGrams.toFixed(1)} g
+6. STYRENE DILUENT : ${scaledStyreneGrams.toFixed(1)} g [@ ${materials.styreneDiluentPercent}% PHR]
+7. UV STABILIZER   : ${scaledUvGrams.toFixed(1)} g [@ ${materials.uvStabilizerPercent}% PHR - ${materials.uvStabilizerType.toUpperCase().replace(/_/g, ' ')}]
 ------------------------------------------------
 TOTAL LIQUID RESIN MIXTURE MASS : ${totalLiquidBatchKg.toFixed(2)} KG
 GLASS FIBER REINFORCEMENT MASS  : ${scaledGlassKg.toFixed(2)} KG (${config.fiberType})
@@ -585,12 +587,12 @@ QC INSPECTOR   : _______________________
                   )}
 
                   <div className="flex justify-between">
-                    <span>6. STYRENE DILUENT</span>
+                    <span>6. STYRENE DILUENT ({materials.styreneDiluentPercent}% PHR)</span>
                     <span>{scaledStyreneGrams.toFixed(1)} g</span>
                   </div>
 
                   <div className="flex justify-between">
-                    <span>7. UV STABILIZER</span>
+                    <span>7. UV STABILIZER ({materials.uvStabilizerPercent}% PHR)</span>
                     <span>{scaledUvGrams.toFixed(1)} g</span>
                   </div>
                 </div>

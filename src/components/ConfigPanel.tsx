@@ -36,7 +36,11 @@ import {
   Clock,
   Atom,
   Printer,
-  IndianRupee
+  IndianRupee,
+  Sun,
+  Droplet,
+  Shield,
+  Palette
 } from 'lucide-react';
 import { soundFx } from '../utils/soundEffects';
 
@@ -65,6 +69,8 @@ interface ConfigPanelProps {
   onOpenTimingModal?: () => void;
   onOpenThermalPrint?: () => void;
   onOpenRateModal?: () => void;
+  onOpenStyreneUvModal?: () => void;
+  onOpenColorMakerModal?: () => void;
 }
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({
@@ -92,6 +98,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   onOpenTimingModal,
   onOpenThermalPrint,
   onOpenRateModal,
+  onOpenStyreneUvModal,
+  onOpenColorMakerModal,
 }) => {
   const [step3SubTab, setStep3SubTab] = useState<'resin_mix' | 'fibermat' | 'top_resin'>('resin_mix');
   const [step4SubTab, setStep4SubTab] = useState<'upper_mylar' | 'sheet_transfer' | 'upper_die' | 'die_weights'>('upper_mylar');
@@ -388,6 +396,105 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
             onChangeProfile={(profile) => updateField('profile', profile)}
             compact={true}
           />
+
+          {/* Color Maker: Primary Hues in Accordance with RAL Specifications */}
+          <div className="bg-gradient-to-r from-purple-950/60 via-slate-900 to-indigo-950/60 p-3 rounded-xl border border-purple-500/40 flex flex-col gap-2.5 shadow-md">
+            <div className="flex items-center justify-between border-b border-purple-500/30 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-500 p-0.5 flex items-center justify-center shadow">
+                  <div className="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center">
+                    <Palette className="w-3.5 h-3.5 text-purple-400" />
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
+                    <span>Color Maker</span>
+                    <span className="text-[10px] text-purple-300 font-normal">| RAL Specifications</span>
+                  </span>
+                </div>
+              </div>
+
+              {onOpenColorMakerModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFx.playClick();
+                    onOpenColorMakerModal();
+                  }}
+                  className="text-[10px] font-mono font-bold px-2 py-1 rounded-md bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/50 flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-300" />
+                  <span>Color Maker Studio</span>
+                </button>
+              )}
+            </div>
+
+            <div className="text-[10px] text-slate-300 font-sans leading-tight">
+              Primary spectral hues formulated in accordance with official RAL specifications:
+            </div>
+
+            {/* 7 Primary Hues Grid: Violet, Indigo, Blue, Green, Yellow, Orange, Red */}
+            <div className="grid grid-cols-7 gap-1">
+              {[
+                { hue: 'violet', label: 'Violet', code: 'RAL 4008', name: 'Signal Violet', hex: '#904684', resinColor: 'ral_violet' },
+                { hue: 'indigo', label: 'Indigo', code: 'RAL 5002', name: 'Ultramarine', hex: '#20214f', resinColor: 'ral_indigo' },
+                { hue: 'blue', label: 'Blue', code: 'RAL 5015', name: 'Sky Blue', hex: '#2271b3', resinColor: 'ral_blue' },
+                { hue: 'green', label: 'Green', code: 'RAL 6018', name: 'Yellow Green', hex: '#57a639', resinColor: 'ral_green' },
+                { hue: 'yellow', label: 'Yellow', code: 'RAL 1018', name: 'Zinc Yellow', hex: '#f8f32b', resinColor: 'ral_yellow' },
+                { hue: 'orange', label: 'Orange', code: 'RAL 2004', name: 'Pure Orange', hex: '#e25303', resinColor: 'ral_orange' },
+                { hue: 'red', label: 'Red', code: 'RAL 3020', name: 'Traffic Red', hex: '#cc0605', resinColor: 'ral_red' },
+              ].map((item) => {
+                const isSelected = config.color === item.resinColor || config.ralCode === item.code || config.customHex === item.hex;
+
+                return (
+                  <button
+                    key={item.hue}
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      updateField('color', item.resinColor as ResinColor);
+                      updateField('customHex', item.hex);
+                      updateField('ralCode', item.code);
+                      updateField('ralName', item.name);
+                      updateField('ralHue', item.hue as any);
+                    }}
+                    className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 transition-all relative ${
+                      isSelected
+                        ? 'bg-purple-950/90 border-purple-400 ring-2 ring-purple-400 shadow-md'
+                        : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
+                    }`}
+                    title={`${item.label}: ${item.code} (${item.name})`}
+                  >
+                    <span
+                      className="w-5 h-5 rounded-full shadow-inner border border-white/20 shrink-0"
+                      style={{ backgroundColor: item.hex }}
+                    />
+                    <span className="text-[9px] font-mono font-bold truncate max-w-full text-slate-200">
+                      {item.label}
+                    </span>
+                    <span className="text-[8px] font-mono text-purple-300 truncate max-w-full">
+                      {item.code.replace('RAL ', '')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active RAL Color Indicator Banner */}
+            {config.ralCode && (
+              <div className="bg-slate-950/90 p-2 rounded-lg border border-purple-500/30 flex items-center justify-between text-[10px] font-mono">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-white/30 shrink-0 shadow"
+                    style={{ backgroundColor: config.customHex || '#8b5cf6' }}
+                  />
+                  <span className="text-white font-bold">{config.ralCode}</span>
+                  <span className="text-slate-400 truncate">{config.ralName || 'RAL Standard'}</span>
+                </div>
+                <span className="text-purple-300 font-bold uppercase">{config.ralHue || 'PRIMARY HUE'}</span>
+              </div>
+            )}
+          </div>
 
           {/* Resin Color & Translucency Base Preset Selector */}
           <div className="flex flex-col gap-2">
@@ -1589,6 +1696,217 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </p>
               </div>
 
+              {/* Styrene Monomer Diluent Control (Viscosity & Capillary Wet-out) */}
+              <div className="flex flex-col gap-2 p-3 bg-slate-950 rounded-xl border border-blue-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-blue-300 flex items-center gap-1.5 uppercase">
+                    <Droplet className="w-4 h-4 text-blue-400" /> Styrene Monomer Diluent
+                  </span>
+                  <span className="text-xs font-mono font-extrabold text-white bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">
+                    {materials.styreneDiluentPercent.toFixed(1)}% PHR ({(materials.styreneMonomerWeightGrams * 0.5).toFixed(0)} g for 50%)
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Dilution & Viscosity Regime:</span>
+                  <span className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] uppercase ${
+                    materials.styreneStatus === 'optimal'
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30'
+                      : materials.styreneStatus === 'none'
+                      ? 'bg-blue-950 text-blue-300 border border-blue-500/30'
+                      : 'bg-red-950 text-red-300 border border-red-500/30'
+                  }`}>
+                    {materials.styreneStatus === 'optimal' ? '✅ Optimal (~350–400 cP)' : materials.styreneStatus === 'none' ? 'ℹ️ Neat Resin (~650 cP)' : '⚠️ High Shrinkage Risk (>5%)'}
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="0.0"
+                  max="8.0"
+                  step="0.5"
+                  value={materials.styreneDiluentPercent}
+                  onChange={(e) => updateField('styreneDiluentPercent', Number(e.target.value))}
+                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+
+                <div className="grid grid-cols-3 gap-1.5 pt-1 text-[10px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('styreneDiluentPercent', 0);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1 px-1.5 rounded border transition-all ${
+                      materials.styreneDiluentPercent === 0
+                        ? 'bg-blue-600 text-white border-blue-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    0% Neat Resin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('styreneDiluentPercent', 2.5);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1 px-1.5 rounded border transition-all ${
+                      materials.styreneDiluentPercent === 2.5
+                        ? 'bg-blue-600 text-white border-blue-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    2.5% Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('styreneDiluentPercent', 4.0);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1 px-1.5 rounded border transition-all ${
+                      materials.styreneDiluentPercent === 4.0
+                        ? 'bg-blue-600 text-white border-blue-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    4.0% Cold / Dense
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-slate-300 font-sans leading-relaxed pt-0.5">
+                  {materials.styreneRecommendation}
+                </p>
+              </div>
+
+              {/* UV Stabilizer Protection Package (UVA + HALS Dual Defense) */}
+              <div className="flex flex-col gap-2 p-3 bg-slate-950 rounded-xl border border-emerald-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-300 flex items-center gap-1.5 uppercase">
+                    <Sun className="w-4 h-4 text-emerald-400" /> UV Stabilizer & Photodegradation System
+                  </span>
+                  <span className="text-xs font-mono font-extrabold text-white bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
+                    {materials.uvStabilizerPercent.toFixed(2)}% PHR ({(materials.uvStabilizerWeightGrams * 0.5).toFixed(1)} g for 50%)
+                  </span>
+                </div>
+
+                {/* UV Stabilizer Package Type Selector */}
+                <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('uvStabilizerType', 'synergistic_uva_hals');
+                      updateField('uvStabilizerPercent', 0.35);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1.5 px-2 rounded border transition-all text-left flex flex-col gap-0.5 ${
+                      materials.uvStabilizerType === 'synergistic_uva_hals'
+                        ? 'bg-emerald-600 text-white border-emerald-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-cyan-300" /> Dual UVA + HALS
+                    </span>
+                    <span className="text-[9px] opacity-80">20–25 Yr Max Defense</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('uvStabilizerType', 'benzotriazole_tinuvin_326');
+                      updateField('uvStabilizerPercent', 0.30);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1.5 px-2 rounded border transition-all text-left flex flex-col gap-0.5 ${
+                      materials.uvStabilizerType === 'benzotriazole_tinuvin_326'
+                        ? 'bg-emerald-600 text-white border-emerald-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span>Tinuvin 326 (UVA)</span>
+                    <span className="text-[9px] opacity-80">Optical Clarity Sunscreen</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('uvStabilizerType', 'hals_tinuvin_770');
+                      updateField('uvStabilizerPercent', 0.20);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1.5 px-2 rounded border transition-all text-left flex flex-col gap-0.5 ${
+                      materials.uvStabilizerType === 'hals_tinuvin_770'
+                        ? 'bg-emerald-600 text-white border-emerald-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span>Tinuvin 770 (HALS)</span>
+                    <span className="text-[9px] opacity-80">Radical Scavenger</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('uvStabilizerType', 'none');
+                      updateField('uvStabilizerPercent', 0.0);
+                      soundFx.playClick();
+                    }}
+                    className={`py-1.5 px-2 rounded border transition-all text-left flex flex-col gap-0.5 ${
+                      materials.uvStabilizerType === 'none'
+                        ? 'bg-red-600 text-white border-red-400 font-bold'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <span>None (Unstabilized)</span>
+                    <span className="text-[9px] opacity-80">Indoor Only (Rapid Yellow)</span>
+                  </button>
+                </div>
+
+                {materials.uvStabilizerType !== 'none' && (
+                  <div className="flex flex-col gap-1 pt-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-300">Stabilizer Loading Concentration:</span>
+                      <span className="font-mono font-bold text-emerald-400">{materials.uvStabilizerPercent.toFixed(2)}% PHR</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="1.00"
+                      step="0.05"
+                      value={materials.uvStabilizerPercent}
+                      onChange={(e) => updateField('uvStabilizerPercent', Number(e.target.value))}
+                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                    <div className="flex justify-between text-[9px] font-mono text-slate-500">
+                      <span>0.10% (Economy)</span>
+                      <span>0.35% (Recommended)</span>
+                      <span>0.60% (Tropical UV-5)</span>
+                      <span>1.00% (Max)</span>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-300 font-sans leading-relaxed pt-0.5">
+                  {materials.uvRecommendation}
+                </p>
+
+                {onOpenStyreneUvModal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      onOpenStyreneUvModal();
+                    }}
+                    className="mt-1 w-full py-1.5 px-2 bg-gradient-to-r from-amber-500/20 to-emerald-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 text-amber-300 border border-amber-500/40 rounded flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span>🔬 View Styrene & UV Stabilizer Engineering Recommendations</span>
+                  </button>
+                )}
+              </div>
+
               {/* Pigment Paste Concentration Slider for Desired Transparency */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
@@ -1626,6 +1944,14 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <div className="flex justify-between text-slate-400">
                   <span>Cobalt Promoter 6% (for 50%):</span>
                   <strong className="text-purple-300">{(materials.cobaltVolumeMl * 0.5).toFixed(1)} mL ({(materials.cobaltWeightGrams * 0.5).toFixed(1)} g)</strong>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Styrene Diluent ({materials.styreneDiluentPercent}% PHR):</span>
+                  <strong className="text-blue-300">{(materials.styreneMonomerWeightGrams * 0.5).toFixed(1)} g</strong>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>UV Stabilizer ({materials.uvStabilizerPercent}% PHR):</span>
+                  <strong className="text-emerald-300">{(materials.uvStabilizerWeightGrams * 0.5).toFixed(1)} g</strong>
                 </div>
                 {materials.fillerPercent > 0 && (
                   <div className="flex justify-between text-slate-400">

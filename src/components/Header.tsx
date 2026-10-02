@@ -15,7 +15,9 @@ import {
   IndianRupee,
   Download,
   Smartphone,
-  Clock
+  Clock,
+  Sun,
+  Palette
 } from 'lucide-react';
 import { FRPConfig } from '../types';
 import { soundFx } from '../utils/soundEffects';
@@ -30,6 +32,8 @@ interface HeaderProps {
   onOpenReport: () => void;
   onOpenMechanism?: () => void;
   onOpenTimingModal?: () => void;
+  onOpenStyreneUvModal?: () => void;
+  onOpenColorMakerModal?: () => void;
   onOpenShare?: () => void;
   onOpenThermalPrint?: () => void;
   onOpenRateModal?: () => void;
@@ -46,6 +50,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReport,
   onOpenMechanism,
   onOpenTimingModal,
+  onOpenStyreneUvModal,
+  onOpenColorMakerModal,
   onOpenShare,
   onOpenThermalPrint,
   onOpenRateModal,
@@ -175,6 +181,30 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 animate-pulse" />
             <span>Gel Timing<span className="hidden sm:inline"> Schedule</span></span>
+          </button>
+        )}
+
+        {/* Styrene & UV Stabilizer Engineering Recommendations Button */}
+        {onOpenStyreneUvModal && (
+          <button
+            onClick={onOpenStyreneUvModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all shadow-sm"
+            title="Open Styrene & UV Stabilizer Formulation Recommendations"
+          >
+            <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+            <span>Styrene &amp; UV<span className="hidden sm:inline"> Guide</span></span>
+          </button>
+        )}
+
+        {/* Color Maker RAL Studio Button */}
+        {onOpenColorMakerModal && (
+          <button
+            onClick={onOpenColorMakerModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 hover:bg-purple-500/30 transition-all shadow-sm"
+            title="Open Color Maker RAL Specifications Studio"
+          >
+            <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
+            <span>Color Maker<span className="hidden sm:inline"> (RAL)</span></span>
           </button>
         )}
 

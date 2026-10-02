@@ -221,11 +221,30 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Styrene Monomer Diluent</span>
+                <strong className="text-[11px] sm:text-xs text-blue-300 font-mono">
+                  {materials.styreneDiluentPercent}% PHR ({materials.styreneMonomerWeightGrams.toFixed(1)} g)
+                </strong>
+              </div>
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">UV Stabilizer System</span>
+                <strong className="text-[11px] sm:text-xs text-teal-300 font-mono">
+                  {materials.uvStabilizerPercent}% PHR ({materials.uvStabilizerWeightGrams.toFixed(1)} g - {materials.uvStabilizerType.replace(/_/g, ' ')})
+                </strong>
+              </div>
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Pigment Paste ({materials.pigmentPercent}%)</span>
                 <strong className="text-[11px] sm:text-xs text-cyan-300 font-mono">
                   {materials.pigmentWeightGrams < 1000
                     ? `${materials.pigmentWeightGrams.toFixed(1)} g`
                     : `${materials.pigmentWeightKg.toFixed(3)} kg`}
+                </strong>
+              </div>
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Color Specification</span>
+                <strong className="text-[11px] sm:text-xs text-purple-300 font-mono flex items-center gap-1.5 truncate">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30" style={{ backgroundColor: config.customHex || '#38bdf8' }} />
+                  <span className="truncate">{config.ralCode ? `${config.ralCode} ${config.ralName || ''}` : config.color.toUpperCase().replace(/_/g, ' ')}</span>
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">

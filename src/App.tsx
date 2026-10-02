@@ -11,6 +11,8 @@ import { Product3DRenderer } from './components/Product3DRenderer';
 import { InspectionModal } from './components/InspectionModal';
 import { ReactionMechanismModal } from './components/ReactionMechanismModal';
 import { ProcessTimingModal } from './components/ProcessTimingModal';
+import { StyreneUvModal } from './components/StyreneUvModal';
+import { ColorMakerModal } from './components/ColorMakerModal';
 import { ShareProductModal } from './components/ShareProductModal';
 import { ThermalPrintModal } from './components/ThermalPrintModal';
 import { RateAdjustmentModal } from './components/RateAdjustmentModal';
@@ -39,6 +41,9 @@ const defaultConfig: FRPConfig = {
   catalystPercent: 2.0,
   cobaltPercent: 0.2,
   ambientTempC: 25,
+  styreneDiluentPercent: 0.0,
+  uvStabilizerType: 'none',
+  uvStabilizerPercent: 0.0,
   fillerType: 'none',
   fillerPercent: 0,
   dryingTempC: 50,
@@ -73,6 +78,8 @@ export default function App() {
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   const [isMechanismOpen, setIsMechanismOpen] = useState<boolean>(false);
   const [isTimingOpen, setIsTimingOpen] = useState<boolean>(false);
+  const [isStyreneUvOpen, setIsStyreneUvOpen] = useState<boolean>(false);
+  const [isColorMakerOpen, setIsColorMakerOpen] = useState<boolean>(false);
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isThermalPrintOpen, setIsThermalPrintOpen] = useState<boolean>(false);
   const [isRateModalOpen, setIsRateModalOpen] = useState<boolean>(false);
@@ -225,6 +232,8 @@ export default function App() {
         onOpenReport={() => setIsReportOpen(true)}
         onOpenMechanism={() => setIsMechanismOpen(true)}
         onOpenTimingModal={() => setIsTimingOpen(true)}
+        onOpenStyreneUvModal={() => setIsStyreneUvOpen(true)}
+        onOpenColorMakerModal={() => setIsColorMakerOpen(true)}
         onOpenShare={() => setIsShareOpen(true)}
         onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
         onOpenRateModal={() => setIsRateModalOpen(true)}
@@ -408,6 +417,8 @@ export default function App() {
             onOpenReportModal={() => setIsReportOpen(true)}
             onOpenMechanism={() => setIsMechanismOpen(true)}
             onOpenTimingModal={() => setIsTimingOpen(true)}
+            onOpenStyreneUvModal={() => setIsStyreneUvOpen(true)}
+            onOpenColorMakerModal={() => setIsColorMakerOpen(true)}
             onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
             onOpenRateModal={() => setIsRateModalOpen(true)}
           />
@@ -450,6 +461,24 @@ export default function App() {
         config={config}
         materials={materials}
         tableSpec={tableSpec}
+      />
+
+      {/* Styrene & UV Stabilizer Engineering Recommendations Modal */}
+      <StyreneUvModal
+        isOpen={isStyreneUvOpen}
+        onClose={() => setIsStyreneUvOpen(false)}
+        config={config}
+        materials={materials}
+        onChangeConfig={setConfig}
+      />
+
+      {/* Color Maker: RAL Specifications Studio Modal */}
+      <ColorMakerModal
+        isOpen={isColorMakerOpen}
+        onClose={() => setIsColorMakerOpen(false)}
+        config={config}
+        materials={materials}
+        onChangeConfig={setConfig}
       />
 
       {/* Share Product & 3D Spec Modal */}

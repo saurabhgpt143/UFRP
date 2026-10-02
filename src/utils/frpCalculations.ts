@@ -1,4 +1,5 @@
 import { FRPConfig, MaterialCalculations, TableSpec, ResinType, GlassFiberType } from '../types';
+import { RAL_COLORS, findRalColor, RalColorSpec } from '../data/ralColors';
 
 export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   typeKey: GlassFiberType;
@@ -266,20 +267,104 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     cobaltRecommendation = `Warm ambient (${ambientTempC}°C). Recommend reducing Cobalt Octoate to 0.08%–0.12% to avoid flash gelation & surface cracking.`;
   }
 
+  // Styrene Monomer Diluent (0.0% to 10.0% PHR)
+  // Commercial unsaturated polyester resins typically contain 35-40 wt% pre-dissolved reactive styrene.
+  // Additional pure monomeric styrene lowers liquid viscosity to facilitate rapid fiber bundle wet-out.
+  const styreneDiluentPercent = config.styreneDiluentPercent !== undefined ? config.styreneDiluentPercent : 0.0;
+  const styreneMonomerWeightKg = totalResinWeightKg * (styreneDiluentPercent / 100);
+  const styreneMonomerWeightGrams = styreneMonomerWeightKg * 1000;
+
+  let styreneStatus: 'none' | 'optimal' | 'excessive' = 'none';
+  let styreneRecommendation = "Neat base resin (no additional reactive thinning). High viscosity (~600–800 cPs). Requires vigorous compaction rolling to avoid dry fibers.";
+
+  if (styreneDiluentPercent === 0) {
+    styreneStatus = 'none';
+    styreneRecommendation = "Neat base resin (no additional reactive thinning). High viscosity (~600–800 cPs). Requires vigorous compaction rolling to avoid dry fibers.";
+  } else if (styreneDiluentPercent > 5.0) {
+    styreneStatus = 'excessive';
+    styreneRecommendation = `High styrene dilution (${styreneDiluentPercent}% PHR). Risk of excessive volumetric cure shrinkage (>8%), increased brittle cracking, lower HDT, and VOC emission. Keep ≤ 5.0% PHR.`;
+  } else {
+    styreneStatus = 'optimal';
+    if (ambientTempC < 20) {
+      styreneRecommendation = `Winter ambient (${ambientTempC}°C): ${styreneDiluentPercent}% styrene dilution counteracts cold resin thickening, maintaining rapid capillary fiber impregnation.`;
+    } else if (ambientTempC > 30) {
+      styreneRecommendation = `Warm ambient (${ambientTempC}°C): ${styreneDiluentPercent}% styrene dilution is sufficient. Keep below 3.0% to limit monomer flash-off before Mylar sealing.`;
+    }
+  }
+
+  // UV Stabilizer System (UVA + HALS synergistic package or single stabilizer)
+  const uvStabilizerType = config.uvStabilizerType ?? 'none';
+  const defaultUvPercent = uvStabilizerType === 'none' ? 0.0 : (uvStabilizerType === 'synergistic_uva_hals' ? 0.35 : 0.25);
+  const uvStabilizerPercent = config.uvStabilizerPercent !== undefined ? config.uvStabilizerPercent : defaultUvPercent;
+  const uvStabilizerWeightKg = totalResinWeightKg * (uvStabilizerPercent / 100);
+  const uvStabilizerWeightGrams = uvStabilizerWeightKg * 1000;
+  const uvStabilizerGrams = uvStabilizerWeightGrams; // for compatibility with receipt generator
+
+  let uvProtectionLevel: 'none' | 'standard' | 'high' | 'maximum' = 'none';
+  let uvRecommendation = "";
+
+  if (uvStabilizerType === 'none' || uvStabilizerPercent === 0) {
+    uvProtectionLevel = 'none';
+    uvRecommendation = "Unstabilized matrix. Direct sunlight exposure causes severe photolytic chalking and yellowing within 12–24 months (ASTM D3841 / ISO 4892 fail).";
+  } else if (uvStabilizerType === 'synergistic_uva_hals') {
+    uvProtectionLevel = 'maximum';
+    uvRecommendation = `Synergistic Dual-Action UVA + HALS (${uvStabilizerPercent}% PHR): Benzotriazole absorbs UV photons (290–380 nm) while HALS catalytically scavenges photolytic free radicals. Extends sheet service life to 20+ years.`;
+  } else if (uvStabilizerType === 'benzotriazole_tinuvin_326') {
+    uvProtectionLevel = 'high';
+    uvRecommendation = `Tinuvin 326 Benzotriazole UVA (${uvStabilizerPercent}% PHR): Excellent initial yellowing protection and optical clarity retention. Converts UV light into harmless thermal vibrations.`;
+  } else if (uvStabilizerType === 'hals_tinuvin_770') {
+    uvProtectionLevel = 'high';
+    uvRecommendation = `Tinuvin 770 HALS (${uvStabilizerPercent}% PHR): Low-volatility sterically hindered amine radical scavenger. Prevents polymer chain microcracking and surface fiber bloom.`;
+  } else if (uvStabilizerType === 'cyasorb_uv531') {
+    uvProtectionLevel = 'standard';
+    uvRecommendation = `Cyasorb UV-531 Benzophenone (${uvStabilizerPercent}% PHR): Economical UV absorber for industrial roofing panels with good polyester matrix compatibility.`;
+  }
+
   // Resin Type Spec
   const activeResinType = config.resinType ?? 'orthophthalic';
   const activeResinSpec = RESIN_SPECS[activeResinType];
 
+  // Yellowing Index (YI) projection over 0, 5, 10, 15, 20 years (ASTM E313 / ASTM D3841)
+  const baseResinYiFactor = activeResinType === 'acrylic_modified' ? 0.35 : (activeResinType === 'isophthalic' ? 0.65 : 1.0);
+  const uvYiInhibitionFactor = uvStabilizerType === 'synergistic_uva_hals' ? 0.30 : (uvStabilizerType === 'none' ? 1.9 : 0.55);
+  const mylarShieldFactor = config.mylarFinish === 'anti_uv' || config.mylarThicknessUm >= 75 ? 0.65 : 1.0;
+
+  const yellowingIndexProjection = {
+    year0: parseFloat((2.0 * baseResinYiFactor).toFixed(1)),
+    year5: parseFloat((2.0 + 3.0 * baseResinYiFactor * uvYiInhibitionFactor * mylarShieldFactor).toFixed(1)),
+    year10: parseFloat((2.0 + 7.5 * baseResinYiFactor * uvYiInhibitionFactor * mylarShieldFactor).toFixed(1)),
+    year15: parseFloat((2.0 + 13.0 * baseResinYiFactor * uvYiInhibitionFactor * mylarShieldFactor).toFixed(1)),
+    year20: parseFloat((2.0 + 19.0 * baseResinYiFactor * uvYiInhibitionFactor * mylarShieldFactor).toFixed(1)),
+  };
+
   // Pigment Paste Dosing based on Resin Color, Pigment Concentration & Desired Transparency
   let defaultPigment = 0.8;
   let baseColorMaxTransmittance = activeResinSpec.baseTransmittance;
-  if (config.color === 'crystal_transparent') { defaultPigment = 0.0; baseColorMaxTransmittance = Math.min(95, activeResinSpec.baseTransmittance); }
+
+  // Check for RAL Specification Matching
+  let activeRalSpec: RalColorSpec | undefined = config.ralCode ? findRalColor(config.ralCode) : undefined;
+  if (!activeRalSpec && typeof config.color === 'string' && config.color.startsWith('ral_')) {
+    const hue = config.color.replace('ral_', '');
+    activeRalSpec = RAL_COLORS.find(c => c.primaryHue === hue);
+  }
+
+  if (activeRalSpec) {
+    defaultPigment = activeRalSpec.recommendedPigment;
+    baseColorMaxTransmittance = Math.min(activeRalSpec.baseTransmittance, activeResinSpec.baseTransmittance);
+  } else if (config.color === 'crystal_transparent') { defaultPigment = 0.0; baseColorMaxTransmittance = Math.min(95, activeResinSpec.baseTransmittance); }
   else if (config.color === 'translucent_clear') { defaultPigment = 0.2; baseColorMaxTransmittance = Math.min(90, activeResinSpec.baseTransmittance); }
   else if (config.color === 'sky_blue') { defaultPigment = 0.8; baseColorMaxTransmittance = Math.min(88, activeResinSpec.baseTransmittance); }
   else if (config.color === 'emerald_green') { defaultPigment = 1.0; baseColorMaxTransmittance = Math.min(82, activeResinSpec.baseTransmittance); }
   else if (config.color === 'amber') { defaultPigment = 1.0; baseColorMaxTransmittance = Math.min(84, activeResinSpec.baseTransmittance); }
   else if (config.color === 'opal_white') { defaultPigment = 2.5; baseColorMaxTransmittance = Math.min(65, activeResinSpec.baseTransmittance); }
   else if (config.color === 'carbon_black') { defaultPigment = 3.0; baseColorMaxTransmittance = Math.min(10, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_violet') { defaultPigment = 1.0; baseColorMaxTransmittance = Math.min(68, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_indigo') { defaultPigment = 1.5; baseColorMaxTransmittance = Math.min(52, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_blue') { defaultPigment = 0.8; baseColorMaxTransmittance = Math.min(80, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_green') { defaultPigment = 0.8; baseColorMaxTransmittance = Math.min(76, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_yellow') { defaultPigment = 0.6; baseColorMaxTransmittance = Math.min(85, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_orange') { defaultPigment = 1.0; baseColorMaxTransmittance = Math.min(68, activeResinSpec.baseTransmittance); }
+  else if (config.color === 'ral_red') { defaultPigment = 1.5; baseColorMaxTransmittance = Math.min(45, activeResinSpec.baseTransmittance); }
   else if (config.color === 'custom') { defaultPigment = 1.0; baseColorMaxTransmittance = config.customBaseTransmittance ?? Math.min(80, activeResinSpec.baseTransmittance); }
 
   if (config.customBaseTransmittance !== undefined) {
@@ -368,20 +453,33 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   let uvProtectionType = "36µm UV-Stabilized Mylar Carrier Film";
   let uvDegradationResistance = "Standard UV-2 Weather Grade (ISO 4892)";
 
+  if (uvStabilizerType === 'synergistic_uva_hals') {
+    uvProtectionBonusYears += 4;
+    uvProtectionType += " + Synergistic Dual UVA/HALS Matrix (Tinuvin Package)";
+    uvDegradationResistance = "Extreme UV-5 Weathering Class (4000 hr QUV Passed)";
+  } else if (uvStabilizerType === 'benzotriazole_tinuvin_326' || uvStabilizerType === 'hals_tinuvin_770') {
+    uvProtectionBonusYears += 2;
+    uvProtectionType += ` + High Performance ${uvStabilizerType === 'benzotriazole_tinuvin_326' ? 'UVA Benzotriazole' : 'HALS Radical Scavenger'}`;
+    uvDegradationResistance = "High UV-4 Commercial Roof Grade";
+  } else if (uvStabilizerType === 'none') {
+    uvProtectionBonusYears = Math.max(0, uvProtectionBonusYears - 2);
+    uvDegradationResistance = "Unstabilized UV-1 Indoor Grade Only";
+  }
+
   const step1 = config.step1Method || '';
   const step5 = config.step5Method || '';
   const hasGelcoat = step1.includes('gelcoat') || step5.includes('gelcoat');
 
   if (hasGelcoat) {
-    uvProtectionBonusYears = 7;
+    uvProtectionBonusYears += 3;
     uvProtectionType = "Isophthalic Neopentyl Glycol (NPG) Gelcoat + UV Absorber";
     uvDegradationResistance = "Extreme UV-5 Outdoor Weathering Class (4000 hr QUV Passed)";
   } else if (config.mylarThicknessUm >= 50) {
-    uvProtectionBonusYears = 5;
+    uvProtectionBonusYears += 2;
     uvProtectionType = `${config.mylarThicknessUm}µm Heavy Duty Weather-Shield Mylar Film`;
     uvDegradationResistance = "High UV-4 Commercial Roof Grade";
   } else if (config.mylarThicknessUm >= 30) {
-    uvProtectionBonusYears = 4;
+    uvProtectionBonusYears += 1;
     uvProtectionType = `${config.mylarThicknessUm}µm UV-Inhibited PET Film Coating`;
     uvDegradationResistance = "Enhanced UV-3 Weather Resistance Class";
   }
@@ -474,6 +572,21 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     fillerWeightGrams: parseFloat(fillerWeightGrams.toFixed(1)),
     fillerCostUsdKg,
     fillerEffectNote,
+    // Styrene Reactive Diluent Monomer
+    styreneDiluentPercent,
+    styreneMonomerWeightKg: parseFloat(styreneMonomerWeightKg.toFixed(2)),
+    styreneMonomerWeightGrams: parseFloat(styreneMonomerWeightGrams.toFixed(1)),
+    styreneRecommendation,
+    styreneStatus,
+    // UV Stabilizer Protection System
+    uvStabilizerType,
+    uvStabilizerPercent,
+    uvStabilizerWeightGrams: parseFloat(uvStabilizerWeightGrams.toFixed(1)),
+    uvStabilizerWeightKg: parseFloat(uvStabilizerWeightKg.toFixed(3)),
+    uvStabilizerGrams: parseFloat(uvStabilizerWeightGrams.toFixed(1)),
+    uvRecommendation,
+    uvProtectionLevel,
+    yellowingIndexProjection,
     pigmentPercent,
     pigmentWeightGrams: parseFloat(pigmentWeightGrams.toFixed(1)),
     pigmentWeightKg: parseFloat(pigmentWeightKg.toFixed(3)),
@@ -514,6 +627,17 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
       warrantyPeriodYears,
       degradationGraphData,
     },
+    ralSpec: activeRalSpec
+      ? {
+          code: activeRalSpec.code,
+          name: activeRalSpec.name,
+          primaryHue: activeRalSpec.primaryHue,
+          hueLabel: activeRalSpec.hueLabel,
+          hex: activeRalSpec.hex,
+          bisCode: activeRalSpec.bisCode,
+          description: activeRalSpec.description,
+        }
+      : undefined,
     resinTypeSpec: {
       typeKey: activeResinSpec.typeKey,
       name: activeResinSpec.name,
@@ -540,7 +664,7 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
 }
 
 export function getResinHexColor(color: FRPConfig['color'], customHex?: string): number {
-  if (color === 'custom' && customHex) {
+  if (customHex) {
     const clean = customHex.replace('#', '');
     const parsed = parseInt(clean, 16);
     if (!isNaN(parsed)) return parsed;
@@ -551,15 +675,27 @@ export function getResinHexColor(color: FRPConfig['color'], customHex?: string):
     case 'translucent_clear':
       return 0xdbeafe; // light ice blue/clear
     case 'sky_blue':
-      return 0x38bdf8; // vibrant sky blue
+    case 'ral_blue':
+      return 0x2271b3; // RAL 5015 Sky Blue
     case 'opal_white':
       return 0xf8fafc; // milky white
     case 'emerald_green':
-      return 0x10b981; // emerald
+    case 'ral_green':
+      return 0x57a639; // RAL 6018 Yellow Green
     case 'amber':
       return 0xf59e0b; // amber yellow
     case 'carbon_black':
       return 0x1e293b; // slate dark
+    case 'ral_violet':
+      return 0x904684; // RAL 4008 Signal Violet
+    case 'ral_indigo':
+      return 0x20214f; // RAL 5002 Ultramarine Blue (Indigo)
+    case 'ral_yellow':
+      return 0xf8f32b; // RAL 1018 Zinc Yellow
+    case 'ral_orange':
+      return 0xe25303; // RAL 2004 Pure Orange
+    case 'ral_red':
+      return 0xcc0605; // RAL 3020 Traffic Red
     case 'custom':
       return customHex ? parseInt(customHex.replace('#', ''), 16) || 0x8b5cf6 : 0x8b5cf6;
     default:
