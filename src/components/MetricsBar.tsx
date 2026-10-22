@@ -8,7 +8,8 @@ import {
   Layers,
   Ruler,
   ShieldCheck,
-  Zap
+  Zap,
+  Activity
 } from 'lucide-react';
 
 interface MetricsBarProps {
@@ -18,6 +19,7 @@ interface MetricsBarProps {
   curingProgress: number;
   onOpenRateModal?: () => void;
   onOpenTimingModal?: () => void;
+  onOpenStructuralModal?: () => void;
 }
 
 export const MetricsBar: React.FC<MetricsBarProps> = ({
@@ -27,6 +29,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
   curingProgress,
   onOpenRateModal,
   onOpenTimingModal,
+  onOpenStructuralModal,
 }) => {
   return (
     <div className="w-full bg-slate-950 border-t border-slate-800 px-3 sm:px-4 py-2 sm:py-3 flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-between gap-3 sm:gap-4 overflow-x-auto scrollbar-none snap-x text-xs z-10 font-sans shrink-0">
@@ -120,6 +123,31 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
             <span>IS 12866:2020</span>
             <span className="text-slate-500">•</span>
             <span className="text-slate-300">IS 6746</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Structural Load-Bearing & Purlin Span Metric */}
+      <div
+        onClick={onOpenStructuralModal}
+        className={`flex items-center gap-2.5 sm:gap-3 shrink-0 snap-start bg-slate-900/80 sm:bg-transparent p-2 sm:p-0 border sm:border-0 border-slate-800 rounded-xl ${
+          onOpenStructuralModal ? 'cursor-pointer hover:bg-slate-900/90 hover:border-blue-500/40 transition-all' : ''
+        }`}
+        title="Click to view Structural Load-Bearing Capacity & Purlin Span Analyzer"
+      >
+        <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+          <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        </div>
+        <div>
+          <div className="text-[9px] sm:text-[10px] uppercase font-mono font-bold text-slate-400 whitespace-nowrap flex items-center gap-1">
+            <span>Structural Load Capacity</span>
+            {onOpenStructuralModal && <span className="text-[9px] text-blue-400 font-normal hover:underline">(Analyze)</span>}
+          </div>
+          <div className="font-bold text-blue-300 font-mono mt-0.5 text-[11px] sm:text-xs whitespace-nowrap flex items-center gap-1.5">
+            <span>Purlin: {materials.structuralLoad.recommendedMaxPurlinSpanMm}mm</span>
+            <span className="text-amber-300 bg-amber-950/70 px-1 py-0.2 rounded border border-amber-500/30 text-[10px]">
+              {materials.structuralLoad.purlinTable.find(p => p.spanMm === materials.structuralLoad.recommendedMaxPurlinSpanMm)?.allowableLoadKgM2 || 140} kg/m²
+            </span>
           </div>
         </div>
       </div>

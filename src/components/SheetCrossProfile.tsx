@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { FRPConfig, ProfileType } from '../types';
 import { calculateMaterials } from '../utils/frpCalculations';
-import { Layers, Ruler, Maximize2, ShieldAlert, Check, Info } from 'lucide-react';
+import { Layers, Ruler, Maximize2, ShieldAlert, Check, Info, Sparkles, Sliders } from 'lucide-react';
 
 interface SheetCrossProfileProps {
   config: FRPConfig;
   onChangeProfile: (profile: ProfileType) => void;
+  onChangeDrawFactor?: (drawFactor: number) => void;
   compact?: boolean;
 }
 
@@ -78,14 +79,14 @@ export class ProfileSpecs {
       badge: 'Sinusoidal',
       coveredWidthMm: 914,
       totalWidthMm: 1000,
-      reqSheetWidthMm: 1150,
+      reqSheetWidthMm: 1127,
       pitchMm: 76,
       ribHeightMm: 18,
       ribTopWidthMm: 38,
       ribBaseWidthMm: 38,
       ribCount: 12,
       minorRibHeightMm: 0,
-      description: 'Classic sinusoidal 76/18 wave corrugated profile for residential and agricultural roofing.',
+      description: 'Traditional circular/sinusoidal wave pattern (IS 12866 / ASTM D3841) with standard profile draw factor roughly 1.12 to 1.15. Rule of thumb: To hit a finished width of 4 feet (48" / 1219mm), the required initial flat sheet width is approx. 4.5 feet (54" to 55" / 1372mm to 1397mm).',
     },
     flat: {
       id: 'flat',
@@ -123,6 +124,7 @@ export class ProfileSpecs {
 export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
   config,
   onChangeProfile,
+  onChangeDrawFactor,
   compact = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -168,25 +170,65 @@ export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
 
     if (p.id === 'corrugated_sinusoidal') {
       const numWaves = 8;
-      const waveWidth = (svgWidth - paddingX * 2) / numWaves;
-      const amp = 20;
+      const totalSpanX = svgWidth - paddingX * 2;
+      const waveWidth = totalSpanX / numWaves;
+      const amp = 16;
+      const waveBaselineY = 82;
 
-      let d = `M ${paddingX} ${baselineY}`;
+      let d = `M ${paddingX} ${waveBaselineY}`;
       for (let i = 0; i < numWaves; i++) {
         const xStart = paddingX + i * waveWidth;
         const xMid = xStart + waveWidth / 2;
         const xEnd = xStart + waveWidth;
-        d += ` Q ${xStart + waveWidth * 0.25} ${baselineY - amp}, ${xMid} ${baselineY}`;
-        d += ` Q ${xStart + waveWidth * 0.75} ${baselineY + amp}, ${xEnd} ${baselineY}`;
+        d += ` Q ${xStart + waveWidth * 0.25} ${waveBaselineY - amp}, ${xMid} ${waveBaselineY}`;
+        d += ` Q ${xStart + waveWidth * 0.75} ${waveBaselineY + amp}, ${xEnd} ${waveBaselineY}`;
       }
+
+      const coverSpanX = totalSpanX * (p.coveredWidthMm / p.totalWidthMm);
+      const m = calculateMaterials(config);
 
       return (
         <g>
-          <path d={d} fill="none" stroke="#38bdf8" strokeWidth={thicknessPx} strokeLinecap="round" />
+          {/* Shaded fill under wave */}
+          <path
+            d={`${d} L ${paddingX + totalSpanX} ${waveBaselineY + amp + 8} L ${paddingX} ${waveBaselineY + amp + 8} Z`}
+            fill="url(#resinGradient)"
+            opacity="0.15"
+          />
+
+          {/* Sinusoidal Wave Line */}
+          <path d={d} fill="none" stroke="#38bdf8" strokeWidth={thicknessPx + 0.5} strokeLinecap="round" />
+
           {/* Dimension Pitch */}
-          <line x1={paddingX} y1={baselineY - amp - 10} x2={paddingX + waveWidth} y2={baselineY - amp - 10} stroke="#22c55e" strokeWidth="1.5" />
-          <text x={paddingX + waveWidth / 2} y={baselineY - amp - 16} fill="#22c55e" textAnchor="middle" fontSize="11" fontFamily="monospace" fontWeight="bold">
+          <line x1={paddingX} y1={waveBaselineY - amp - 10} x2={paddingX + waveWidth} y2={waveBaselineY - amp - 10} stroke="#22c55e" strokeWidth="1.5" />
+          <line x1={paddingX} y1={waveBaselineY - amp - 15} x2={paddingX} y2={waveBaselineY - amp - 5} stroke="#22c55e" strokeWidth="1" />
+          <line x1={paddingX + waveWidth} y1={waveBaselineY - amp - 15} x2={paddingX + waveWidth} y2={waveBaselineY - amp - 5} stroke="#22c55e" strokeWidth="1" />
+          <text x={paddingX + waveWidth / 2} y={waveBaselineY - amp - 13} fill="#22c55e" textAnchor="middle" fontSize="10" fontFamily="monospace" fontWeight="bold">
             Pitch: {p.pitchMm}mm
+          </text>
+
+          {/* Wave Depth/Height Dimension (18mm) */}
+          <line x1={paddingX + waveWidth * 0.75 + 18} y1={waveBaselineY - amp} x2={paddingX + waveWidth * 0.75 + 18} y2={waveBaselineY + amp} stroke="#22c55e" strokeWidth="1.2" strokeDasharray="2 2" />
+          <line x1={paddingX + waveWidth * 0.75 + 14} y1={waveBaselineY - amp} x2={paddingX + waveWidth * 0.75 + 22} y2={waveBaselineY - amp} stroke="#22c55e" strokeWidth="1" />
+          <line x1={paddingX + waveWidth * 0.75 + 14} y1={waveBaselineY + amp} x2={paddingX + waveWidth * 0.75 + 22} y2={waveBaselineY + amp} stroke="#22c55e" strokeWidth="1" />
+          <text x={paddingX + waveWidth * 0.75 + 26} y={waveBaselineY + 4} fill="#22c55e" fontSize="10" fontFamily="monospace" fontWeight="bold">
+            Depth: {p.ribHeightMm}mm
+          </text>
+
+          {/* Covered Width Dimension Line */}
+          <line x1={paddingX} y1={waveBaselineY + amp + 18} x2={paddingX + coverSpanX} y2={waveBaselineY + amp + 18} stroke="#38bdf8" strokeWidth="1.5" />
+          <line x1={paddingX} y1={waveBaselineY + amp + 12} x2={paddingX} y2={waveBaselineY + amp + 24} stroke="#38bdf8" strokeWidth="1.5" />
+          <line x1={paddingX + coverSpanX} y1={waveBaselineY + amp + 12} x2={paddingX + coverSpanX} y2={waveBaselineY + amp + 24} stroke="#38bdf8" strokeWidth="1.5" />
+          <text x={paddingX + coverSpanX / 2} y={waveBaselineY + amp + 30} fill="#38bdf8" textAnchor="middle" fontSize="10" fontFamily="monospace" fontWeight="bold">
+            Covered Width: {p.coveredWidthMm}mm (with 1.5-corrugation overlap)
+          </text>
+
+          {/* Total Width & Raw Sheet Dimension Line */}
+          <line x1={paddingX} y1={waveBaselineY + amp + 44} x2={paddingX + totalSpanX} y2={waveBaselineY + amp + 44} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 2" />
+          <line x1={paddingX} y1={waveBaselineY + amp + 38} x2={paddingX} y2={waveBaselineY + amp + 50} stroke="#ef4444" strokeWidth="1.5" />
+          <line x1={paddingX + totalSpanX} y1={waveBaselineY + amp + 38} x2={paddingX + totalSpanX} y2={waveBaselineY + amp + 50} stroke="#ef4444" strokeWidth="1.5" />
+          <text x={paddingX + totalSpanX / 2} y={waveBaselineY + amp + 56} fill="#ef4444" textAnchor="middle" fontSize="10" fontFamily="monospace" fontWeight="bold">
+            Formed: {config.widthMm}mm ({(config.widthMm / 25.4).toFixed(0)}") | Req Initial Flat: {Math.round(config.widthMm * m.profileStretchFactor)}mm ({((config.widthMm * m.profileStretchFactor) / 25.4).toFixed(1)}" / {((config.widthMm * m.profileStretchFactor) / 304.8).toFixed(2)}ft) [{m.profileStretchFactor.toFixed(3)}× Draw]
           </text>
         </g>
       );
@@ -404,6 +446,133 @@ export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
         })}
       </div>
 
+      {/* Traditional Circular / Sinusoidal Wave Draw Factor Benchmark (1.12 to 1.15) */}
+      {selectedProfileId === 'corrugated_sinusoidal' && (
+        <div className="bg-gradient-to-r from-blue-950/60 via-slate-900 to-cyan-950/60 border border-cyan-500/30 rounded-xl p-3 sm:p-3.5 flex flex-col gap-2.5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-cyan-500/20">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-xs font-mono font-bold text-cyan-200 uppercase tracking-wider">
+                Traditional Circular / Sinusoidal Wave Draw Benchmark
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 self-start sm:self-auto">
+              <span>Standard Profile Draw Factor:</span>
+              <strong className="text-white">1.12 – 1.15</strong>
+            </div>
+          </div>
+
+          {/* Benchmark Rule of Thumb Card */}
+          <div className="bg-slate-950/80 rounded-lg p-2.5 border border-slate-800 text-[11px] leading-relaxed flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-amber-300 font-semibold font-mono text-xs">
+              <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+              <span>Standard Wave Pattern Benchmark:</span>
+            </div>
+            <p className="text-slate-300 text-[11px] leading-normal">
+              A standard circular/sinusoidal wave pattern has a profile draw factor of roughly <strong className="text-cyan-300 font-mono">1.12 to 1.15</strong>.
+              To hit a finished width of <strong className="text-white">4 feet (48" / 1219 mm)</strong>, the required initial flat sheet width is approx. <strong className="text-emerald-300">4.5 feet (54" to 55" / 1372 mm to 1397 mm)</strong>.
+            </p>
+          </div>
+
+          {/* Interactive Draw Factor Selection */}
+          {onChangeDrawFactor && (
+            <div className="flex flex-col gap-2 pt-0.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-medium font-mono text-[11px] flex items-center gap-1">
+                  <span>Wave Draw Factor:</span>
+                  <span className="text-cyan-400 font-bold font-mono">
+                    {(config.corrugatedDrawFactor ?? (85.622 / 76)).toFixed(3)}×
+                  </span>
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">
+                  {Math.abs((config.corrugatedDrawFactor ?? (85.622 / 76)) - 1.125) < 0.002
+                    ? '4.5 ft (54") Initial Flat per 4 ft Finished'
+                    : Math.abs((config.corrugatedDrawFactor ?? (85.622 / 76)) - (55 / 48)) < 0.003
+                    ? '4.58 ft (55") Initial Flat per 4 ft Finished'
+                    : Math.abs((config.corrugatedDrawFactor ?? (85.622 / 76)) - (85.622 / 76)) < 0.002
+                    ? 'IS 12866 76/18 Arc Exact (85.62mm/76mm)'
+                    : '1.12–1.15 Custom Wave Draw Factor'}
+                </span>
+              </div>
+
+              {/* Preset Buttons */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {[
+                  { factor: 1.125, label: '1.125× (4.5 ft / 54")', note: '54" flat per 48" finished' },
+                  { factor: 85.622 / 76, label: '1.127× (76/18 Arc)', note: '85.62mm arc per 76mm' },
+                  { factor: 55 / 48, label: '1.146× (55" / 4.58 ft)', note: '55" flat per 48" finished' },
+                  { factor: 1.150, label: '1.150× (Upper Limit)', note: 'Deep corrugation draw' },
+                ].map((item) => {
+                  const currentFactor = config.corrugatedDrawFactor ?? (85.622 / 76);
+                  const isCurrent = Math.abs(currentFactor - item.factor) < 0.002;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => onChangeDrawFactor(item.factor)}
+                      className={`p-1.5 rounded-lg border text-left transition-all ${
+                        isCurrent
+                          ? 'bg-cyan-600/30 border-cyan-400 text-white font-bold ring-1 ring-cyan-400 shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="text-[11px] font-mono">{item.label}</div>
+                      <div className="text-[9px] text-slate-500 font-mono">{item.note}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Slider for fine-tuning */}
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-[10px] font-mono text-slate-500">1.120×</span>
+                <input
+                  type="range"
+                  min="1.120"
+                  max="1.150"
+                  step="0.001"
+                  value={config.corrugatedDrawFactor ?? (85.622 / 76)}
+                  onChange={(e) => onChangeDrawFactor(Number(e.target.value))}
+                  className="flex-1 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                />
+                <span className="text-[10px] font-mono text-slate-500">1.150×</span>
+              </div>
+            </div>
+          )}
+
+          {/* Current Sheet Width Calculation */}
+          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+            <div>
+              <span className="text-[9px] text-slate-500 block">CURRENT FINISHED WIDTH</span>
+              <strong className="text-white text-xs block">
+                {config.widthMm} mm
+              </strong>
+              <span className="text-[10px] text-blue-300">
+                {(config.widthMm / 25.4).toFixed(1)}" ({(config.widthMm / 304.8).toFixed(2)} ft)
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] text-slate-500 block">REQ. INITIAL FLAT SHEET (NET)</span>
+              <strong className="text-emerald-400 text-xs block">
+                {Math.round(config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76)))} mm
+              </strong>
+              <span className="text-[10px] text-emerald-300">
+                {((config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76))) / 25.4).toFixed(1)}" ({((config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76))) / 304.8).toFixed(2)} ft)
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] text-slate-500 block">RAW FLAT (+{config.edgeMarginMm ?? 50}mm TRIM)</span>
+              <strong className="text-cyan-300 text-xs block">
+                {Math.round(config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76)) + (config.edgeMarginMm ?? 50))} mm
+              </strong>
+              <span className="text-[10px] text-cyan-200">
+                {((config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76)) + (config.edgeMarginMm ?? 50)) / 25.4).toFixed(1)}" ({((config.widthMm * (config.corrugatedDrawFactor ?? (85.622 / 76)) + (config.edgeMarginMm ?? 50)) / 304.8).toFixed(2)} ft)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SVG Technical Drawing Display */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 sm:p-4 relative">
         <div className="flex items-center justify-between mb-2">
@@ -437,29 +606,55 @@ export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
       {/* Dimensional Breakdown Table */}
       {(() => {
         const m = calculateMaterials(config);
+        const drawFactor = m.profileStretchFactor;
+        const netDevWidthMm = Math.round(config.widthMm * drawFactor);
         return (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-mono text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 font-mono text-xs">
             <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] text-slate-500 block">FINISHED SHEET SIZE</span>
-              <strong className="text-sm text-blue-400 font-bold">{config.lengthMm} × {config.widthMm} mm</strong>
+              <span className="text-[10px] text-slate-500 block">FINISHED FORMED SIZE</span>
+              <strong className="text-sm text-blue-400 font-bold block">{config.lengthMm} × {config.widthMm} mm</strong>
+              <span className="text-[9px] text-slate-400 block">
+                {(config.lengthMm / 304.8).toFixed(1)}' × {(config.widthMm / 304.8).toFixed(1)}' ({(config.widthMm / 25.4).toFixed(0)}")
+              </span>
             </div>
             <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] text-slate-500 block">LENGTH TRIM MARGIN</span>
-              <strong className="text-sm text-emerald-400 font-bold">+{m.lengthMarginMm} mm / end</strong>
+              <span className="text-[10px] text-slate-500 block">PROFILE DRAW FACTOR</span>
+              <strong className="text-sm text-amber-300 font-bold block">
+                {drawFactor.toFixed(3)}×
+              </strong>
+              <span className="text-[9px] text-slate-500 block">
+                {config.profile === 'corrugated_sinusoidal' ? '1.12 – 1.15 Wave Draw' : 'Tooling Dev Ratio'}
+              </span>
+            </div>
+            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span className="text-[10px] text-slate-500 block">REQ INITIAL FLAT WIDTH</span>
+              <strong className="text-sm text-emerald-400 font-bold block">
+                {netDevWidthMm} mm
+              </strong>
+              <span className="text-[9px] text-slate-400 block">
+                {(netDevWidthMm / 25.4).toFixed(1)}" ({(netDevWidthMm / 304.8).toFixed(2)} ft)
+              </span>
+            </div>
+            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+              <span className="text-[10px] text-slate-500 block">RAW FLAT WITH TRIM</span>
+              <strong className="text-sm text-cyan-300 font-bold block">{m.flatWidthMm} mm</strong>
+              <span className="text-[9px] text-slate-400 block">
+                {(m.flatWidthMm / 25.4).toFixed(1)}" (+{m.edgeMarginMm}mm trim)
+              </span>
             </div>
             <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
               <span className="text-[10px] text-slate-500 block">RAW MOLD LENGTH</span>
-              <strong className="text-sm text-cyan-300 font-bold">{m.rawLengthMm} mm</strong>
+              <strong className="text-sm text-cyan-300 font-bold block">{m.rawLengthMm} mm</strong>
+              <span className="text-[9px] text-slate-400 block">+{m.lengthMarginMm * 2}mm end trim</span>
             </div>
             <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] text-slate-500 block">DETERMINED FLAT RAW WIDTH</span>
-              <strong className="text-sm text-cyan-300 font-bold">{m.flatWidthMm} mm</strong>
-            </div>
-            <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
-              <span className="text-[10px] text-slate-500 block">APPLIED MYLAR FILM ROLL</span>
-              <strong className="text-sm text-amber-400 font-bold">
+              <span className="text-[10px] text-slate-500 block">APPLIED MYLAR ROLL</span>
+              <strong className={`text-sm font-bold block ${config.mylarWidthMm < m.flatWidthMm ? 'text-amber-400' : 'text-emerald-400'}`}>
                 {config.mylarWidthMm} mm
               </strong>
+              <span className="text-[9px] text-slate-500 block">
+                {config.mylarWidthMm < m.flatWidthMm ? '⚠️ Under-width deficit' : `+${config.mylarWidthMm - m.flatWidthMm}mm clearance`}
+              </span>
             </div>
           </div>
         );

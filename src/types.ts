@@ -33,6 +33,7 @@ export interface FRPConfig {
   edgeMarginMm: number;    // Edge trimming & overlap margin (e.g. 30 to 100 mm, default 50mm)
   thicknessMm: number;     // e.g. 1.2, 1.5, 2.0, 3.0, 5.0
   profile: ProfileType;
+  corrugatedDrawFactor?: number; // Profile draw factor for sinusoidal waves (1.12 to 1.15, standard 1.125 for 54" per 4ft, 1.146 for 55" per 4ft)
   color: ResinColor;
   customHex?: string;      // Custom pigment HEX color e.g. "#a855f7"
   customBaseTransmittance?: number; // Custom base light transmittance % (0-100)
@@ -222,6 +223,43 @@ export interface MaterialCalculations {
     typicalApplications: string;
     weaveStructure: string;
   };
+  structuralLoad: StructuralLoadSpec;
+}
+
+export type SupportCondition = 'single_span' | 'double_span' | 'multi_span';
+export type DeflectionLimitCriteria = 'L_60' | 'L_100' | 'L_120' | 'L_180';
+
+export interface PurlinSpanLoadPoint {
+  spanMm: number;
+  spanFeet: number;
+  allowableLoadKgM2: number;
+  allowableLoadKNM2: number;
+  allowableLoadPsf: number;
+  bendingLimitKgM2: number;
+  deflectionLimitKgM2: number;
+  governingFactor: 'bending' | 'deflection';
+  maxDeflectionMm: number;
+  concentratedLoadCapacityKg: number;
+  walkableStatus: 'safe_walkable' | 'crawl_board_required' | 'fragile_walkway';
+}
+
+export interface StructuralLoadSpec {
+  profileDepthMm: number;
+  profilePitchMm: number;
+  effectiveThicknessMm: number;
+  momentOfInertiaCm4PerM: number; // I_xx in cm^4 per meter width
+  sectionModulusCm3PerM: number;  // Z_xx in cm^3 per meter width
+  flexuralModulusGpa: number;     // E_flex in GPa
+  ultimateFlexuralStrengthMpa: number; // sigma_ult in MPa
+  allowableBendingStressMpa: number;   // sigma_all = sigma_ult / FS
+  factorOfSafety: number;              // default 2.5
+  flexuralRigidityNm2PerM: number;     // D = E * I in N*m^2 per meter width
+  recommendedMaxPurlinSpanMm: number;  // optimal recommended span for standard 100 kg/m^2 roof load
+  concentratedLoadPadCapacityKg: number; // ASTM D3841 150x150mm midspan point load (kg)
+  maxWindSpeedCapacityKmph: number;     // permissible basic wind speed (km/h)
+  maxWindPressureKNM2: number;          // peak uplift / pressure capacity (kN/m^2)
+  purlinTable: PurlinSpanLoadPoint[];   // Table of standard spans: 600, 900, 1000, 1200, 1400, 1500, 1800, 2000 mm
+  standardsReferenced: string[];        // ASTM D3841, IS 12866, EN 1013, IS 875 Part 3
 }
 
 export type StepNumber = 1 | 2 | 3 | 4 | 5 | 6;
@@ -243,3 +281,28 @@ export interface DefectItem {
   severity: 'low' | 'medium' | 'high';
   resolved: boolean;
 }
+
+export interface BoxBaseDimensionResult {
+  widthMm: number;
+  lengthMm: number;
+  thicknessMm: number;
+  payloadKg: number;
+  supportType: 'perimeter_4_edges' | 'supported_2_edges' | 'fully_supported_bottom';
+  loadType: 'uniform_distributed' | 'center_point_load';
+  reinforcementType: 'csm_mat' | 'woven_roving' | 'sandwich_core';
+  actualStressMpa: number;
+  allowableStressMpa: number;
+  stressRatioPercent: number;
+  actualDeflectionMm: number;
+  allowableDeflectionMm: number;
+  deflectionRatioPercent: number;
+  maxSafeCapacityKg: number;
+  isSafe: boolean;
+  status: 'safe' | 'marginal' | 'unsafe';
+  statusMessage: string;
+  recommendedThicknessMm: number;
+  stiffenerRecommendation: string;
+  laminateSchedule: string;
+  baseWeightKg: number;
+}
+

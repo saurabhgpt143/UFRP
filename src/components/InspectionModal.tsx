@@ -24,7 +24,11 @@ import {
   Clock,
   Sun,
   Shield,
-  Activity
+  Activity,
+  Wind,
+  Footprints,
+  ChevronRight,
+  Sliders
 } from 'lucide-react';
 
 interface InspectionModalProps {
@@ -35,6 +39,7 @@ interface InspectionModalProps {
   materials: MaterialCalculations;
   onOpenShare?: () => void;
   onOpenRateModal?: () => void;
+  onOpenStructuralModal?: () => void;
 }
 
 export const InspectionModal: React.FC<InspectionModalProps> = ({
@@ -45,6 +50,7 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
   materials,
   onOpenShare,
   onOpenRateModal,
+  onOpenStructuralModal,
 }) => {
   if (!isOpen) return null;
 
@@ -161,15 +167,15 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Profile Stretch & Side Margin</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Profile Draw Factor & Trim</span>
                 <strong className="text-[11px] sm:text-xs text-amber-300 font-mono">
-                  {materials.profileStretchFactor.toFixed(2)}x (+{materials.edgeMarginMm}mm side margin)
+                  {materials.profileStretchFactor.toFixed(3)}x {config.profile === 'corrugated_sinusoidal' ? '(1.12–1.15 wave)' : ''} (+{materials.edgeMarginMm}mm margin)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Determined Raw Mold Bounds</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Initial Flat & Raw Mold Bounds</span>
                 <strong className="text-[11px] sm:text-xs text-cyan-300 font-mono">
-                  {materials.rawLengthMm} L × {materials.flatWidthMm} W mm
+                  Dev: {Math.round(config.widthMm * materials.profileStretchFactor)}mm | Raw: {materials.rawLengthMm}L × {materials.flatWidthMm}W mm
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
@@ -300,6 +306,113 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Section 3.2: Structural Load-Bearing Capacity & Purlin Span Specification */}
+          <div className="bg-slate-950 p-3 sm:p-4 rounded-xl border border-blue-500/30 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider text-blue-400">
+                    Structural Load-Bearing Capacity & Purlin Span Verification
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    ASTM D3841 / IS 12866:2020 Clause 7 & 8 • FS = 2.50
+                  </p>
+                </div>
+              </div>
+              {onOpenStructuralModal && (
+                <button
+                  type="button"
+                  onClick={onOpenStructuralModal}
+                  className="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/40 text-blue-300 border border-blue-500/40 text-[11px] font-mono font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Sliders className="w-3 h-3 text-blue-400" />
+                  <span>Open Interactive Analyzer</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Structural Geometry & Modulus Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 font-mono">
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Moment of Inertia (Ixx)</span>
+                <strong className="text-xs text-cyan-300">{materials.structuralLoad.momentOfInertiaCm4PerM} cm⁴/m</strong>
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Section Modulus (Zxx)</span>
+                <strong className="text-xs text-emerald-300">{materials.structuralLoad.sectionModulusCm3PerM} cm³/m</strong>
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Allowable Stress (σ_all)</span>
+                <strong className="text-xs text-amber-300">{materials.structuralLoad.allowableBendingStressMpa} MPa</strong>
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Recommended Max Span</span>
+                <strong className="text-xs text-white">{materials.structuralLoad.recommendedMaxPurlinSpanMm} mm ({(materials.structuralLoad.recommendedMaxPurlinSpanMm / 304.8).toFixed(1)} ft)</strong>
+              </div>
+            </div>
+
+            {/* Purlin Span Summary Table */}
+            <div className="overflow-x-auto rounded-lg border border-slate-800">
+              <table className="w-full text-[10.5px] font-mono text-left">
+                <thead className="bg-slate-900 text-slate-400 uppercase text-[9.5px] border-b border-slate-800">
+                  <tr>
+                    <th className="py-2 px-2.5">Purlin Span</th>
+                    <th className="py-2 px-2.5">Safe Load (kg/m²)</th>
+                    <th className="py-2 px-2.5">Safe Load (kN/m²)</th>
+                    <th className="py-2 px-2.5">Governing Factor</th>
+                    <th className="py-2 px-2.5">Point Load Pad</th>
+                    <th className="py-2 px-2.5 text-right">Roofer Walkability</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 bg-slate-950">
+                  {materials.structuralLoad.purlinTable.filter(p => [600, 900, 1200, 1500, 1800].includes(p.spanMm)).map((p) => (
+                    <tr key={p.spanMm} className={p.spanMm === materials.structuralLoad.recommendedMaxPurlinSpanMm ? 'bg-blue-950/30 text-white font-bold' : 'text-slate-300'}>
+                      <td className="py-2 px-2.5 flex items-center gap-1">
+                        <span>{p.spanMm} mm</span>
+                        <span className="text-slate-500">({p.spanFeet}ft)</span>
+                      </td>
+                      <td className="py-2 px-2.5 text-amber-300 font-bold">{p.allowableLoadKgM2} kg/m²</td>
+                      <td className="py-2 px-2.5 text-slate-300">{p.allowableLoadKNM2} kN/m²</td>
+                      <td className="py-2 px-2.5">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 uppercase">
+                          {p.governingFactor} (L/60)
+                        </span>
+                      </td>
+                      <td className="py-2 px-2.5 text-emerald-300">{p.concentratedLoadCapacityKg} kg</td>
+                      <td className="py-2 px-2.5 text-right">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                          p.walkableStatus === 'safe_walkable'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : p.walkableStatus === 'crawl_board_required'
+                            ? 'bg-amber-500/20 text-amber-300'
+                            : 'bg-rose-500/20 text-rose-300'
+                        }`}>
+                          {p.walkableStatus === 'safe_walkable' ? 'Walkable' : p.walkableStatus === 'crawl_board_required' ? 'Crawl-Board Req.' : 'Fragile'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Environmental & Wind Safety Note */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 bg-slate-900/80 rounded-lg border border-slate-800 text-[10px] font-mono text-slate-400">
+              <span className="flex items-center gap-1.5 text-cyan-300">
+                <Wind className="w-3.5 h-3.5" />
+                Peak Design Wind Speed: <strong className="text-white">{materials.structuralLoad.maxWindSpeedCapacityKmph} km/h</strong> (IS 875-3 Zones I-V)
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-300">
+                <Footprints className="w-3.5 h-3.5" />
+                ASTM D3841 Concentrated Pad Load: <strong className="text-white">{materials.structuralLoad.concentratedLoadPadCapacityKg} kg</strong>
+              </span>
             </div>
           </div>
 

@@ -40,7 +40,8 @@ import {
   Sun,
   Droplet,
   Shield,
-  Palette
+  Palette,
+  Activity
 } from 'lucide-react';
 import { soundFx } from '../utils/soundEffects';
 
@@ -71,6 +72,7 @@ interface ConfigPanelProps {
   onOpenRateModal?: () => void;
   onOpenStyreneUvModal?: () => void;
   onOpenColorMakerModal?: () => void;
+  onOpenStructuralModal?: () => void;
 }
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({
@@ -100,6 +102,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   onOpenRateModal,
   onOpenStyreneUvModal,
   onOpenColorMakerModal,
+  onOpenStructuralModal,
 }) => {
   const [step3SubTab, setStep3SubTab] = useState<'resin_mix' | 'fibermat' | 'top_resin'>('resin_mix');
   const [step4SubTab, setStep4SubTab] = useState<'upper_mylar' | 'sheet_transfer' | 'upper_die' | 'die_weights'>('upper_mylar');
@@ -129,8 +132,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
       }
     }
 
-    // Calculate required flat width if width, profile, or edge margin changed
-    if (key === 'widthMm' || key === 'profile' || key === 'edgeMarginMm') {
+    // Calculate required flat width if width, profile, draw factor, or edge margin changed
+    if (key === 'widthMm' || key === 'profile' || key === 'edgeMarginMm' || key === 'corrugatedDrawFactor') {
       const tempMaterials = calculateMaterials(newConfig);
       if (newConfig.mylarWidthMm < tempMaterials.flatWidthMm) {
         newConfig.mylarWidthMm = tempMaterials.flatWidthMm;
@@ -244,17 +247,25 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
             </div>
 
             <div className="grid grid-cols-7 gap-1">
-              {[900, 1000, 1070, 1188, 1200, 1300, 1500].map((w) => (
+              {[
+                { w: 914, label: "914 (3')" },
+                { w: 1000, label: "1000" },
+                { w: 1070, label: "1070" },
+                { w: 1200, label: "1200" },
+                { w: 1219, label: "1219 (4')" },
+                { w: 1300, label: "1300" },
+                { w: 1500, label: "1500" },
+              ].map((item) => (
                 <button
-                  key={w}
-                  onClick={() => updateField('widthMm', w)}
+                  key={item.w}
+                  onClick={() => updateField('widthMm', item.w)}
                   className={`py-1 rounded-lg text-xs font-mono font-semibold border transition-all ${
-                    config.widthMm === w
+                    config.widthMm === item.w
                       ? 'bg-blue-600 border-blue-400 text-white shadow-md'
                       : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
-                  {w}mm
+                  {item.label}
                 </button>
               ))}
             </div>
@@ -346,7 +357,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span>{materials.flatWidthMm} mm Flat Width</span>
               </div>
               <p className="text-[10px] font-mono text-slate-400 leading-tight">
-                Formula: Finished ({config.lengthMm}L × {config.widthMm}W mm) + Length Margins (+{2 * (config.lengthMarginMm ?? 50)}mm) + Side Margin (+{materials.edgeMarginMm}mm) × Profile Stretch ({materials.profileStretchFactor.toFixed(2)}×)
+                Formula: Raw Length = {config.lengthMm}mm + {2 * (config.lengthMarginMm ?? 50)}mm end trim = {materials.rawLengthMm}mm | Required Flat Width (Net Wave Draw {materials.profileStretchFactor.toFixed(3)}×) = {Math.round(config.widthMm * materials.profileStretchFactor)}mm ({((config.widthMm * materials.profileStretchFactor) / 25.4).toFixed(1)}" / {((config.widthMm * materials.profileStretchFactor) / 304.8).toFixed(2)}ft) | Raw Flat with +{materials.edgeMarginMm}mm side margin = {materials.flatWidthMm}mm
               </p>
             </div>
           </div>
@@ -394,8 +405,55 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           <SheetCrossProfile
             config={config}
             onChangeProfile={(profile) => updateField('profile', profile)}
+            onChangeDrawFactor={(factor) => updateField('corrugatedDrawFactor', factor)}
             compact={true}
           />
+
+          {/* Structural Load-Bearing & Purlin Span Quick Card */}
+          <div className="bg-gradient-to-r from-blue-950/60 via-slate-900 to-indigo-950/60 p-3 rounded-xl border border-blue-500/40 flex flex-col gap-2 shadow-md">
+            <div className="flex items-center justify-between border-b border-blue-500/30 pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center">
+                  <Activity className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="text-xs font-mono font-bold text-white uppercase flex items-center gap-1.5">
+                    <span>Structural Load &amp; Purlin Span</span>
+                  </span>
+                </div>
+              </div>
+              {onOpenStructuralModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundFx.playClick();
+                    onOpenStructuralModal();
+                  }}
+                  className="text-[10px] font-mono font-bold px-2 py-1 rounded-md bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white border border-blue-500/50 flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                >
+                  <Sliders className="w-3 h-3 text-cyan-300" />
+                  <span>Analyze</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center font-mono">
+              <div className="bg-slate-900/90 p-1.5 rounded border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Max Span</span>
+                <strong className="text-[11px] text-emerald-300">{materials.structuralLoad.recommendedMaxPurlinSpanMm}mm</strong>
+              </div>
+              <div className="bg-slate-900/90 p-1.5 rounded border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Safe Load</span>
+                <strong className="text-[11px] text-amber-300">
+                  {materials.structuralLoad.purlinTable.find(p => p.spanMm === materials.structuralLoad.recommendedMaxPurlinSpanMm)?.allowableLoadKgM2 || 140} kg/m²
+                </strong>
+              </div>
+              <div className="bg-slate-900/90 p-1.5 rounded border border-slate-800">
+                <span className="text-[9px] text-slate-500 uppercase block">Inertia (Ixx)</span>
+                <strong className="text-[11px] text-cyan-300">{materials.structuralLoad.momentOfInertiaCm4PerM} cm⁴/m</strong>
+              </div>
+            </div>
+          </div>
 
           {/* Color Maker: Primary Hues in Accordance with RAL Specifications */}
           <div className="bg-gradient-to-r from-purple-950/60 via-slate-900 to-indigo-950/60 p-3 rounded-xl border border-purple-500/40 flex flex-col gap-2.5 shadow-md">

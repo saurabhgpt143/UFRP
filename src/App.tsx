@@ -16,6 +16,7 @@ import { ColorMakerModal } from './components/ColorMakerModal';
 import { ShareProductModal } from './components/ShareProductModal';
 import { ThermalPrintModal } from './components/ThermalPrintModal';
 import { RateAdjustmentModal } from './components/RateAdjustmentModal';
+import { StructuralLoadModal } from './components/StructuralLoadModal';
 import { WhatsAppChatBubble } from './components/WhatsAppChatBubble';
 import { FRPConfig, StepNumber } from './types';
 import { calculateTables, calculateMaterials } from './utils/frpCalculations';
@@ -30,6 +31,7 @@ const defaultConfig: FRPConfig = {
   edgeMarginMm: 50,
   thicknessMm: 2.0,
   profile: 'corrugated_sinusoidal',
+  corrugatedDrawFactor: 1.125, // Standard circular/sinusoidal wave draw factor (1.12 to 1.15, e.g. 54" initial flat per 48" finished width)
   color: 'crystal_transparent',
   resinType: 'orthophthalic',
   fiberType: 'csm_450',
@@ -83,6 +85,7 @@ export default function App() {
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [isThermalPrintOpen, setIsThermalPrintOpen] = useState<boolean>(false);
   const [isRateModalOpen, setIsRateModalOpen] = useState<boolean>(false);
+  const [isStructuralOpen, setIsStructuralOpen] = useState<boolean>(false);
 
   // Derived calculations
   const tableSpec = calculateTables(config);
@@ -237,6 +240,7 @@ export default function App() {
         onOpenShare={() => setIsShareOpen(true)}
         onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
         onOpenRateModal={() => setIsRateModalOpen(true)}
+        onOpenStructuralModal={() => setIsStructuralOpen(true)}
         onToggleProduct3DView={() => setActiveViewportTab(activeViewportTab === 'machine' ? 'product' : 'machine')}
         active3DView={activeViewportTab}
       />
@@ -421,6 +425,7 @@ export default function App() {
             onOpenColorMakerModal={() => setIsColorMakerOpen(true)}
             onOpenThermalPrint={() => setIsThermalPrintOpen(true)}
             onOpenRateModal={() => setIsRateModalOpen(true)}
+            onOpenStructuralModal={() => setIsStructuralOpen(true)}
           />
         </div>
       </div>
@@ -433,6 +438,7 @@ export default function App() {
         curingProgress={curingProgress}
         onOpenRateModal={() => setIsRateModalOpen(true)}
         onOpenTimingModal={() => setIsTimingOpen(true)}
+        onOpenStructuralModal={() => setIsStructuralOpen(true)}
       />
 
       {/* Inspection Certificate Modal */}
@@ -444,6 +450,16 @@ export default function App() {
         materials={materials}
         onOpenShare={() => setIsShareOpen(true)}
         onOpenRateModal={() => setIsRateModalOpen(true)}
+        onOpenStructuralModal={() => setIsStructuralOpen(true)}
+      />
+
+      {/* Structural Load-Bearing & Purlin Span Analyzer Modal */}
+      <StructuralLoadModal
+        isOpen={isStructuralOpen}
+        onClose={() => setIsStructuralOpen(false)}
+        config={config}
+        materials={materials}
+        onOpenReportModal={() => setIsReportOpen(true)}
       />
 
       {/* Chemical Reaction Mechanism Visualizer Modal */}

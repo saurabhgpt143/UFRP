@@ -1,4 +1,16 @@
-import { FRPConfig, MaterialCalculations, TableSpec, ResinType, GlassFiberType } from '../types';
+import {
+  FRPConfig,
+  MaterialCalculations,
+  TableSpec,
+  ResinType,
+  GlassFiberType,
+  StructuralLoadSpec,
+  PurlinSpanLoadPoint,
+  SupportCondition,
+  DeflectionLimitCriteria,
+  BoxBaseDimensionResult,
+} from '../types';
+
 import { RAL_COLORS, findRalColor, RalColorSpec } from '../data/ralColors';
 
 export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
@@ -164,6 +176,475 @@ export function calculateTables(config: FRPConfig): TableSpec {
   };
 }
 
+export function calculateStructuralLoadCapacity(
+  config: FRPConfig,
+  flexuralStiffnessGpa: number,
+  supportCondition: SupportCondition = 'double_span',
+  deflectionCriteria: DeflectionLimitCriteria = 'L_60'
+): StructuralLoadSpec {
+  const t = config.thicknessMm;
+  const profile = config.profile;
+
+  // Geometric properties per 1 meter (1000 mm) of sheet width
+  let profileDepthMm = 18;
+  let profilePitchMm = 76;
+  let momentOfInertiaCm4PerM = 9.13;
+  let sectionModulusCm3PerM = 9.13;
+
+  if (profile === 'corrugated_sinusoidal') {
+    // 76/18 Circular/Sinusoidal wave: pitch 76mm, depth 18mm
+    profileDepthMm = 18;
+    profilePitchMm = 76;
+    const factorT = t / 2.0;
+    momentOfInertiaCm4PerM = 9.13 * factorT;
+    const yMaxMm = (profileDepthMm + t) / 2;
+    sectionModulusCm3PerM = (momentOfInertiaCm4PerM * 10000) / yMaxMm / 1000;
+  } else if (profile === 'trapezoidal_rib') {
+    // Industrial box/trapezoidal rib: depth 30mm, pitch 200mm
+    profileDepthMm = 30;
+    profilePitchMm = 200;
+    const factorT = t / 2.0;
+    momentOfInertiaCm4PerM = 17.95 * factorT;
+    const yMaxMm = (profileDepthMm + t) * 0.52; // neutral axis offset slightly towards valley
+    sectionModulusCm3PerM = (momentOfInertiaCm4PerM * 10000) / yMaxMm / 1000;
+  } else if (profile === 'profile_7v') {
+    // 7V profile: depth 28mm, pitch 185mm
+    profileDepthMm = 28;
+    profilePitchMm = 185;
+    const factorT = t / 2.0;
+    momentOfInertiaCm4PerM = 14.80 * factorT;
+    const yMaxMm = (profileDepthMm + t) / 2;
+    sectionModulusCm3PerM = (momentOfInertiaCm4PerM * 10000) / yMaxMm / 1000;
+  } else if (profile === 'profile_6v') {
+    // 6V profile: depth 26mm, pitch 178mm
+    profileDepthMm = 26;
+    profilePitchMm = 178;
+    const factorT = t / 2.0;
+    momentOfInertiaCm4PerM = 13.20 * factorT;
+    const yMaxMm = (profileDepthMm + t) / 2;
+    sectionModulusCm3PerM = (momentOfInertiaCm4PerM * 10000) / yMaxMm / 1000;
+  } else if (profile === 'curved') {
+    // Curved sinusoidal barrel canopy: depth 18mm + pre-camber arch
+    profileDepthMm = 18;
+    profilePitchMm = 76;
+    const factorT = t / 2.0;
+    momentOfInertiaCm4PerM = 10.20 * factorT;
+    const yMaxMm = (profileDepthMm + t) / 2;
+    sectionModulusCm3PerM = (momentOfInertiaCm4PerM * 10000) / yMaxMm / 1000;
+  } else if (profile === 'flat') {
+    // Flat flat sheet (no corrugation)
+    profileDepthMm = t;
+    profilePitchMm = 0;
+    const iMm4 = (1000 * Math.pow(t, 3)) / 12;
+    momentOfInertiaCm4PerM = iMm4 / 10000;
+    const yMaxMm = t / 2;
+    sectionModulusCm3PerM = (iMm4 / yMaxMm) / 1000;
+  }
+
+  // Flexural Modulus E in Pa
+  const E_Gpa = flexuralStiffnessGpa;
+  const E_Pa = E_Gpa * 1e9; // N/m^2
+
+  // Moment of Inertia in m^4 per meter width
+  const I_m4 = momentOfInertiaCm4PerM * 1e-8;
+
+  // Section Modulus in m^3 per meter width
+  const Z_m3 = sectionModulusCm3PerM * 1e-6;
+
+  // Flexural Rigidity D = E * I in N*m^2 per meter
+  const flexuralRigidityNm2PerM = E_Pa * I_m4;
+
+  // Base Ultimate Flexural Strength (MPa) per ASTM D790 / IS 12866
+  let ultimateFlexuralStrengthMpa = 150; // base CSM
+  if (config.fiberType.includes('woven')) ultimateFlexuralStrengthMpa = 225;
+  if (config.fiberType.includes('multiaxial')) ultimateFlexuralStrengthMpa = 275;
+  if (config.glassLayers > 2) ultimateFlexuralStrengthMpa *= 1.25;
+
+  const resinType = config.resinType ?? 'orthophthalic';
+  if (resinType === 'vinyl_ester') ultimateFlexuralStrengthMpa *= 1.25;
+  else if (resinType === 'isophthalic') ultimateFlexuralStrengthMpa *= 1.10;
+  else if (resinType === 'acrylic_modified') ultimateFlexuralStrengthMpa *= 1.05;
+  else if (resinType === 'dicyclopentadiene') ultimateFlexuralStrengthMpa *= 0.95;
+
+  const factorOfSafety = 2.5; // IS 12866 Section 7.2 Safety Margin
+  const allowableBendingStressMpa = ultimateFlexuralStrengthMpa / factorOfSafety;
+  const sigmaAllowablePa = allowableBendingStressMpa * 1e6;
+
+  // Deflection limit divisor k
+  let kDivisor = 60;
+  if (deflectionCriteria === 'L_100') kDivisor = 100;
+  else if (deflectionCriteria === 'L_120') kDivisor = 120;
+  else if (deflectionCriteria === 'L_180') kDivisor = 180;
+
+  // Support coefficients
+  let c_m = 1 / 8; // single span moment coeff (0.125)
+  let c_d = 5 / 384; // single span deflection coeff (~0.01302)
+  if (supportCondition === 'double_span') {
+    c_m = 1 / 8;
+    c_d = 1 / 185;
+  } else if (supportCondition === 'multi_span') {
+    c_m = 1 / 10;
+    c_d = 1 / 145;
+  }
+
+  // Pre-camber arch boost for curved profile
+  const archBoost = profile === 'curved' ? 1.35 : 1.0;
+
+  // Standard Spans table (mm)
+  const standardSpansMm = [600, 900, 1000, 1200, 1400, 1500, 1800, 2000];
+  const purlinTable: PurlinSpanLoadPoint[] = standardSpansMm.map((spanMm) => {
+    const spanM = spanMm / 1000;
+    const spanFeet = parseFloat((spanMm / 304.8).toFixed(1));
+
+    // Bending capacity load (N/m^2)
+    const wBendingPa = ((sigmaAllowablePa * Z_m3) / (c_m * Math.pow(spanM, 2))) * archBoost;
+    // Deflection limit load (N/m^2)
+    const wDeflectionPa = ((E_Pa * I_m4) / (c_d * kDivisor * Math.pow(spanM, 3))) * archBoost;
+
+    const allowablePa = Math.min(wBendingPa, wDeflectionPa);
+    const governingFactor = wDeflectionPa <= wBendingPa ? 'deflection' : 'bending';
+
+    const allowableLoadKgM2 = Math.round(allowablePa / 9.80665);
+    const allowableLoadKNM2 = parseFloat((allowablePa / 1000).toFixed(2));
+    const allowableLoadPsf = parseFloat(((allowablePa / 9.80665) * 0.204816).toFixed(1));
+    const bendingLimitKgM2 = Math.round(wBendingPa / 9.80665);
+    const deflectionLimitKgM2 = Math.round(wDeflectionPa / 9.80665);
+
+    const maxDeflectionMm = parseFloat(((c_d * (allowablePa * Math.pow(spanM, 4))) / (E_Pa * I_m4) * 1000).toFixed(1));
+
+    // Concentrated load capacity (ASTM D3841 150x150 mm block at midspan)
+    const Z_eff_m3 = Z_m3 * 0.55;
+    const P_allowable_N = (4 * sigmaAllowablePa * Z_eff_m3) / spanM;
+    const concentratedLoadCapacityKg = Math.round(P_allowable_N / 9.80665);
+
+    let walkableStatus: 'safe_walkable' | 'crawl_board_required' | 'fragile_walkway' = 'safe_walkable';
+    if (concentratedLoadCapacityKg < 80 || profile === 'flat') {
+      walkableStatus = 'fragile_walkway';
+    } else if (concentratedLoadCapacityKg < 125 || spanMm > 1400) {
+      walkableStatus = 'crawl_board_required';
+    }
+
+    return {
+      spanMm,
+      spanFeet,
+      allowableLoadKgM2,
+      allowableLoadKNM2,
+      allowableLoadPsf,
+      bendingLimitKgM2,
+      deflectionLimitKgM2,
+      governingFactor,
+      maxDeflectionMm,
+      concentratedLoadCapacityKg,
+      walkableStatus,
+    };
+  });
+
+  let recommendedMaxPurlinSpanMm = 1200;
+  for (let i = purlinTable.length - 1; i >= 0; i--) {
+    if (purlinTable[i].allowableLoadKgM2 >= 120) {
+      recommendedMaxPurlinSpanMm = purlinTable[i].spanMm;
+      break;
+    }
+  }
+  if (recommendedMaxPurlinSpanMm === 1200 && purlinTable[0].allowableLoadKgM2 < 120) {
+    recommendedMaxPurlinSpanMm = 600;
+  }
+
+  const recPoint = purlinTable.find(p => p.spanMm === recommendedMaxPurlinSpanMm) || purlinTable[3];
+  const concentratedLoadPadCapacityKg = recPoint.concentratedLoadCapacityKg;
+
+  const span1200 = purlinTable.find(p => p.spanMm === 1200) || purlinTable[3];
+  const upliftCapacityPa = span1200.allowableLoadKgM2 * 9.80665;
+  const maxWindSpeedMs = Math.sqrt(Math.max(100, upliftCapacityPa) / (0.6 * 1.2));
+  const maxWindSpeedCapacityKmph = Math.round(maxWindSpeedMs * 3.6);
+  const maxWindPressureKNM2 = parseFloat((upliftCapacityPa / 1000).toFixed(2));
+
+  return {
+    profileDepthMm,
+    profilePitchMm,
+    effectiveThicknessMm: t,
+    momentOfInertiaCm4PerM: parseFloat(momentOfInertiaCm4PerM.toFixed(2)),
+    sectionModulusCm3PerM: parseFloat(sectionModulusCm3PerM.toFixed(2)),
+    flexuralModulusGpa: parseFloat(flexuralStiffnessGpa.toFixed(1)),
+    ultimateFlexuralStrengthMpa: Math.round(ultimateFlexuralStrengthMpa),
+    allowableBendingStressMpa: Math.round(allowableBendingStressMpa),
+    factorOfSafety,
+    flexuralRigidityNm2PerM: Math.round(flexuralRigidityNm2PerM),
+    recommendedMaxPurlinSpanMm,
+    concentratedLoadPadCapacityKg,
+    maxWindSpeedCapacityKmph,
+    maxWindPressureKNM2,
+    purlinTable,
+    standardsReferenced: [
+      'ASTM D3841: Standard Specification for Glass-Fiber-Reinforced Polyester Plastic Panels',
+      'IS 12866:2020: Specification for Plastic Translucent Sheets Made from Thermosetting Polyester Resin',
+      'EN 1013: Light Transmitting Profiled Plastics Sheets (Load & Deflection Tests)',
+      'IS 875 Part 3: Code of Practice for Design Wind Loads for Buildings & Structures',
+    ],
+  };
+}
+
+export function evaluateCustomSpanAndLoad(
+  structuralSpec: StructuralLoadSpec,
+  spanMm: number,
+  appliedLoadKgM2: number,
+  supportCondition: SupportCondition = 'double_span',
+  deflectionCriteria: DeflectionLimitCriteria = 'L_60'
+) {
+  const spanM = spanMm / 1000;
+  const appliedPa = appliedLoadKgM2 * 9.80665;
+  const E_Pa = structuralSpec.flexuralModulusGpa * 1e9;
+  const I_m4 = structuralSpec.momentOfInertiaCm4PerM * 1e-8;
+  const Z_m3 = structuralSpec.sectionModulusCm3PerM * 1e-6;
+
+  let c_m = 1 / 8;
+  let c_d = 5 / 384;
+  if (supportCondition === 'double_span') {
+    c_m = 1 / 8;
+    c_d = 1 / 185;
+  } else if (supportCondition === 'multi_span') {
+    c_m = 1 / 10;
+    c_d = 1 / 145;
+  }
+
+  let kDivisor = 60;
+  if (deflectionCriteria === 'L_100') kDivisor = 100;
+  else if (deflectionCriteria === 'L_120') kDivisor = 120;
+  else if (deflectionCriteria === 'L_180') kDivisor = 180;
+
+  // Maximum bending moment per meter
+  const momentNm = c_m * appliedPa * Math.pow(spanM, 2);
+  const actualStressMpa = (momentNm / Z_m3) / 1e6;
+  const allowableStressMpa = structuralSpec.allowableBendingStressMpa;
+  const stressRatioPercent = Math.round((actualStressMpa / allowableStressMpa) * 100);
+
+  // Maximum deflection
+  const actualDeflectionMm = (c_d * (appliedPa * Math.pow(spanM, 4)) / (E_Pa * I_m4)) * 1000;
+  const allowableDeflectionMm = (spanM * 1000) / kDivisor;
+  const deflectionRatioPercent = Math.round((actualDeflectionMm / allowableDeflectionMm) * 100);
+
+  // Deflection span ratio
+  const spanToDeflectionRatio = actualDeflectionMm > 0 ? Math.round(spanMm / actualDeflectionMm) : 9999;
+
+  // Safety factor
+  const achievedSafetyFactor = actualStressMpa > 0 ? parseFloat((structuralSpec.ultimateFlexuralStrengthMpa / actualStressMpa).toFixed(2)) : 99;
+
+  let status: 'optimal' | 'warning' | 'critical' = 'optimal';
+  let statusMessage = `PASS: Deflection ${actualDeflectionMm.toFixed(1)}mm ≤ ${allowableDeflectionMm.toFixed(1)}mm (${deflectionCriteria.replace('_', '/')}), Stress at ${stressRatioPercent}% capacity.`;
+
+  if (deflectionRatioPercent > 100 || stressRatioPercent > 100) {
+    status = 'critical';
+    statusMessage = `FAIL: Exceeds ${deflectionRatioPercent > 100 ? `Deflection limit (${actualDeflectionMm.toFixed(1)}mm > ${allowableDeflectionMm.toFixed(1)}mm)` : `Bending stress limit (${actualStressMpa.toFixed(1)} MPa > ${allowableStressMpa} MPa)`}. Reduce span or increase sheet thickness.`;
+  } else if (deflectionRatioPercent > 80 || stressRatioPercent > 80) {
+    status = 'warning';
+    statusMessage = `MARGINAL: Operating at ${Math.max(deflectionRatioPercent, stressRatioPercent)}% design envelope. Recommended to verify purlin spacing with structural engineer.`;
+  }
+
+  return {
+    spanMm,
+    appliedLoadKgM2,
+    momentNm: Math.round(momentNm),
+    actualStressMpa: parseFloat(actualStressMpa.toFixed(1)),
+    allowableStressMpa,
+    stressRatioPercent,
+    actualDeflectionMm: parseFloat(actualDeflectionMm.toFixed(2)),
+    allowableDeflectionMm: parseFloat(allowableDeflectionMm.toFixed(1)),
+    deflectionRatioPercent,
+    spanToDeflectionRatio: `L/${spanToDeflectionRatio}`,
+    achievedSafetyFactor,
+    status,
+    statusMessage,
+  };
+}
+
+export function evaluateBoxBaseCalculation(
+  widthMm: number,
+  lengthMm: number,
+  thicknessMm: number,
+  payloadKg: number,
+  supportType: 'perimeter_4_edges' | 'supported_2_edges' | 'fully_supported_bottom' = 'perimeter_4_edges',
+  loadType: 'uniform_distributed' | 'center_point_load' = 'uniform_distributed',
+  reinforcementType: 'csm_mat' | 'woven_roving' | 'sandwich_core' = 'csm_mat'
+): BoxBaseDimensionResult {
+  const shortMm = Math.min(widthMm, lengthMm);
+  const longMm = Math.max(widthMm, lengthMm);
+  const b = shortMm / 1000; // meters (shorter span)
+  const a = longMm / 1000; // meters (longer span)
+  const areaM2 = Math.max(0.01, a * b);
+  const t = Math.max(0.001, thicknessMm / 1000); // meters
+
+  // Mechanical properties
+  let E_Pa = 8.5e9; // 8.5 GPa for CSM
+  let allowableStressMpa = 60; // SF = 2.5 on 150 MPa ultimate
+  let laminateSchedule = `${Math.max(1, Math.round(thicknessMm / 1.0))}x CSM 450 gsm Chopped Strand Mat`;
+
+  if (reinforcementType === 'woven_roving') {
+    E_Pa = 14.5e9;
+    allowableStressMpa = 90;
+    laminateSchedule = `CSM 450 Surface + ${Math.max(1, Math.round(thicknessMm / 1.4))}x Woven Roving 600 gsm`;
+  } else if (reinforcementType === 'sandwich_core') {
+    E_Pa = 18.0e9;
+    allowableStressMpa = 72;
+    laminateSchedule = `2x FRP Skins (1.5mm) + 10mm Structural High-Density Core`;
+  }
+
+  const nu = 0.3; // Poisson's ratio
+  const D = (E_Pa * Math.pow(t, 3)) / (12 * (1 - nu * nu));
+
+  let actualStressMpa = 0;
+  let actualDeflectionMm = 0;
+  let allowableDeflectionMm = Math.min(shortMm / 80, 8.0); // max allowable sag
+
+  if (supportType === 'fully_supported_bottom') {
+    const pressurePa = (payloadKg * 9.80665) / areaM2;
+    actualStressMpa = pressurePa / 1e6;
+    allowableStressMpa = 110;
+    actualDeflectionMm = 0.02;
+    allowableDeflectionMm = 1.0;
+  } else if (supportType === 'perimeter_4_edges') {
+    const r = Math.min(3.5, a / b);
+    const beta = Math.min(0.125, 0.0479 + 0.046 * Math.pow(r - 1.0, 0.72));
+    const alpha = Math.min(0.142, 0.0444 + 0.054 * Math.pow(r - 1.0, 0.82));
+
+    if (loadType === 'uniform_distributed') {
+      const q = (payloadKg * 9.80665) / areaM2;
+      const sigmaPa = (beta * q * Math.pow(b, 2)) / Math.pow(t, 2);
+      actualStressMpa = sigmaPa / 1e6;
+      const defM = (alpha * q * Math.pow(b, 4)) / D;
+      actualDeflectionMm = defM * 1000;
+    } else {
+      const P = payloadKg * 9.80665;
+      const sigmaPa = 0.48 * (P / Math.pow(t, 2)) * (1 + 1.2 * Math.log(b / Math.max(0.01, 2 * t)));
+      actualStressMpa = sigmaPa / 1e6;
+      const defM = (0.0128 * P * Math.pow(b, 2)) / D;
+      actualDeflectionMm = defM * 1000;
+    }
+  } else {
+    // Supported along 2 edges only
+    if (loadType === 'uniform_distributed') {
+      const q = (payloadKg * 9.80665) / areaM2;
+      const M = (q * Math.pow(b, 2)) / 8;
+      const Z = Math.pow(t, 2) / 6;
+      actualStressMpa = (M / Z) / 1e6;
+      const defM = (5 * q * Math.pow(b, 4)) / (384 * D);
+      actualDeflectionMm = defM * 1000;
+    } else {
+      const P = payloadKg * 9.80665;
+      const M = (P * b) / (4 * a);
+      const Z = Math.pow(t, 2) / 6;
+      actualStressMpa = (M / Z) / 1e6;
+      const defM = (P * Math.pow(b, 3)) / (48 * D * a);
+      actualDeflectionMm = defM * 1000;
+    }
+  }
+
+  const stressRatioPercent = Math.round((actualStressMpa / allowableStressMpa) * 100);
+  const deflectionRatioPercent = allowableDeflectionMm > 0 ? Math.round((actualDeflectionMm / allowableDeflectionMm) * 100) : 0;
+
+  let maxSafeCapacityKg = 0;
+  if (supportType === 'fully_supported_bottom') {
+    maxSafeCapacityKg = Math.min(10000, Math.round((allowableStressMpa * 1e6 * areaM2) / 9.80665));
+  } else {
+    const ratio = Math.max(stressRatioPercent / 100, deflectionRatioPercent / 100);
+    maxSafeCapacityKg = ratio > 0 ? Math.round(payloadKg / ratio) : payloadKg;
+  }
+
+  const isSafe = stressRatioPercent <= 100 && deflectionRatioPercent <= 100;
+  let status: 'safe' | 'marginal' | 'unsafe' = 'safe';
+  let statusMessage = `PASS: ${payloadKg} kg payload safely supported. Deflection is ${actualDeflectionMm.toFixed(1)} mm (within ${allowableDeflectionMm.toFixed(1)} mm limit).`;
+
+  if (!isSafe) {
+    status = 'unsafe';
+    statusMessage = `OVERLOAD: Exceeds ${deflectionRatioPercent > 100 ? `deflection allowance (${actualDeflectionMm.toFixed(1)}mm > ${allowableDeflectionMm.toFixed(1)}mm sag)` : `bending stress limit (${actualStressMpa.toFixed(1)} MPa > ${allowableStressMpa} MPa)`}. Base will bow noticeably.`;
+  } else if (stressRatioPercent > 80 || deflectionRatioPercent > 80) {
+    status = 'marginal';
+    statusMessage = `MARGINAL: Loaded to ${Math.max(stressRatioPercent, deflectionRatioPercent)}% of safe design limit. Consider upgrading thickness or adding stiffeners.`;
+  }
+
+  // Recommended Thickness Search
+  const candidateThicknesses = [1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0];
+  let recommendedThicknessMm = candidateThicknesses[candidateThicknesses.length - 1];
+
+  for (const candT of candidateThicknesses) {
+    const candT_m = candT / 1000;
+    const candD = (E_Pa * Math.pow(candT_m, 3)) / (12 * (1 - nu * nu));
+    let candStress = 0;
+    let candDefl = 0;
+
+    if (supportType === 'perimeter_4_edges') {
+      const r = Math.min(3.5, a / b);
+      const beta = Math.min(0.125, 0.0479 + 0.046 * Math.pow(r - 1.0, 0.72));
+      const alpha = Math.min(0.142, 0.0444 + 0.054 * Math.pow(r - 1.0, 0.82));
+      if (loadType === 'uniform_distributed') {
+        const q = (payloadKg * 9.80665) / areaM2;
+        candStress = ((beta * q * Math.pow(b, 2)) / Math.pow(candT_m, 2)) / 1e6;
+        candDefl = ((alpha * q * Math.pow(b, 4)) / candD) * 1000;
+      } else {
+        const P = payloadKg * 9.80665;
+        candStress = (0.48 * (P / Math.pow(candT_m, 2)) * (1 + 1.2 * Math.log(b / Math.max(0.01, 2 * candT_m)))) / 1e6;
+        candDefl = ((0.0128 * P * Math.pow(b, 2)) / candD) * 1000;
+      }
+    } else if (supportType === 'supported_2_edges') {
+      if (loadType === 'uniform_distributed') {
+        const q = (payloadKg * 9.80665) / areaM2;
+        const M = (q * Math.pow(b, 2)) / 8;
+        const Z = Math.pow(candT_m, 2) / 6;
+        candStress = (M / Z) / 1e6;
+        candDefl = ((5 * q * Math.pow(b, 4)) / (384 * candD)) * 1000;
+      } else {
+        const P = payloadKg * 9.80665;
+        const M = (P * b) / (4 * a);
+        const Z = Math.pow(candT_m, 2) / 6;
+        candStress = (M / Z) / 1e6;
+        candDefl = ((P * Math.pow(b, 3)) / (48 * candD * a)) * 1000;
+      }
+    } else {
+      candStress = ((payloadKg * 9.80665) / areaM2) / 1e6;
+      candDefl = 0.02;
+    }
+
+    if (candStress <= allowableStressMpa * 0.9 && candDefl <= allowableDeflectionMm * 0.9) {
+      recommendedThicknessMm = candT;
+      break;
+    }
+  }
+
+  let stiffenerRecommendation = "No ribs needed. Flat plate has adequate stiffness.";
+  if (shortMm > 800 || (shortMm > 500 && payloadKg > 80)) {
+    stiffenerRecommendation = "Recommend 2x Inverted Top-Hat FRP Ribs (50x30mm) bonded underneath to eliminate bellying.";
+  } else if (shortMm > 600 || (shortMm > 400 && payloadKg > 50)) {
+    stiffenerRecommendation = "Recommend 1x Central Transverse Stiffener Rib or 30mm perimeter down-turned flange.";
+  } else if (supportType === 'supported_2_edges') {
+    stiffenerRecommendation = "Add perimeter flange or side lip (≥25mm) along unsupported edges to resist bending.";
+  }
+
+  const baseWeightKg = parseFloat((areaM2 * (thicknessMm / 1000) * 1550).toFixed(2));
+
+  return {
+    widthMm,
+    lengthMm,
+    thicknessMm,
+    payloadKg,
+    supportType,
+    loadType,
+    reinforcementType,
+    actualStressMpa: parseFloat(actualStressMpa.toFixed(1)),
+    allowableStressMpa,
+    stressRatioPercent,
+    actualDeflectionMm: parseFloat(actualDeflectionMm.toFixed(2)),
+    allowableDeflectionMm: parseFloat(allowableDeflectionMm.toFixed(1)),
+    deflectionRatioPercent,
+    maxSafeCapacityKg,
+    isSafe,
+    status,
+    statusMessage,
+    recommendedThicknessMm,
+    stiffenerRecommendation,
+    laminateSchedule,
+    baseWeightKg,
+  };
+}
+
 export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const lengthM = config.lengthMm / 1000;
   const lengthMarginMm = config.lengthMarginMm ?? 50;
@@ -172,12 +653,18 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const ultimateWidthMm = config.widthMm;
   const edgeMarginMm = config.edgeMarginMm ?? 50;
 
-  // Profile stretch factor (ratio of unformed flat developed width to formed width)
+  // Profile stretch factor / draw factor (ratio of unformed flat developed width to formed width)
+  // For traditional circular/sinusoidal waves:
+  // A standard wave pattern has a profile draw factor of roughly 1.12 to 1.15.
+  // Benchmark: To hit a finished width of 4 feet (48" / 1219mm), the required initial flat sheet width is approx. 4.5 feet (54" to 55" / 1372mm to 1397mm).
+  // Arc length per pitch for classic 76/18 = ∫₀⁷⁶ √(1 + (dy/dx)²) dx = 85.622mm (85.622 / 76 = 1.1266).
   let profileStretchFactor = 1.0;
   if (config.profile === 'profile_7v') profileStretchFactor = 1440 / 1300; // ~1.1077 (1440mm flat per 1300mm finished width)
   else if (config.profile === 'profile_6v') profileStretchFactor = 1220 / 1070; // ~1.1402 (1220mm flat per 1070mm finished width)
-  else if (config.profile === 'trapezoidal_rib') profileStretchFactor = 1.250;
-  else if (config.profile === 'corrugated_sinusoidal') profileStretchFactor = 1.180;
+  else if (config.profile === 'trapezoidal_rib') profileStretchFactor = 1250 / 1080; // ~1.1574 (1250mm flat per 1080mm finished width)
+  else if (config.profile === 'corrugated_sinusoidal') {
+    profileStretchFactor = config.corrugatedDrawFactor ?? (85.622 / 76); // ~1.1266 (user-adjustable between 1.120 and 1.150)
+  }
   else if (config.profile === 'curved') profileStretchFactor = 1.120;
   else if (config.profile === 'flat') profileStretchFactor = 1.000;
 
@@ -660,6 +1147,7 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
       typicalApplications: activeGlassSpec.typicalApplications,
       weaveStructure: activeGlassSpec.weaveStructure,
     },
+    structuralLoad: calculateStructuralLoadCapacity(config, flexuralStiffnessGpa),
   };
 }
 

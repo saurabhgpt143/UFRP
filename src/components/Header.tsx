@@ -17,7 +17,8 @@ import {
   Smartphone,
   Clock,
   Sun,
-  Palette
+  Palette,
+  Activity
 } from 'lucide-react';
 import { FRPConfig } from '../types';
 import { soundFx } from '../utils/soundEffects';
@@ -37,6 +38,7 @@ interface HeaderProps {
   onOpenShare?: () => void;
   onOpenThermalPrint?: () => void;
   onOpenRateModal?: () => void;
+  onOpenStructuralModal?: () => void;
   onToggleProduct3DView?: () => void;
   active3DView?: 'machine' | 'product';
 }
@@ -55,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenShare,
   onOpenThermalPrint,
   onOpenRateModal,
+  onOpenStructuralModal,
   onToggleProduct3DView,
   active3DView = 'machine',
 }) => {
@@ -205,6 +208,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
             <span>Color Maker<span className="hidden sm:inline"> (RAL)</span></span>
+          </button>
+        )}
+
+        {/* Structural Load-Bearing & Purlin Span Analyzer Button */}
+        {onOpenStructuralModal && (
+          <button
+            onClick={onOpenStructuralModal}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/40 hover:bg-blue-600/30 transition-all shadow-sm"
+            title="Open Structural Load-Bearing Capacity & Purlin Span Analyzer (ASTM D3841 / IS 12866)"
+          >
+            <Activity className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
+            <span>Structural<span className="hidden sm:inline"> Load</span></span>
           </button>
         )}
 
