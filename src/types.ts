@@ -21,9 +21,27 @@ export type ResinType = 'orthophthalic' | 'isophthalic' | 'dicyclopentadiene' | 
 
 export type UVStabilizerType = 'synergistic_uva_hals' | 'benzotriazole_tinuvin_326' | 'hals_tinuvin_770' | 'cyasorb_uv531' | 'none';
 
-export type GlassFiberType = 'csm_300' | 'csm_450' | 'csm_600' | 'woven_roving_600' | 'multiaxial_800';
+export type GlassFiberType =
+  | 'surface_veil_30'
+  | 'polymer_mesh'
+  | 'printed_cloth'
+  | 'csm_225'
+  | 'csm_300'
+  | 'csm_450'
+  | 'csm_600'
+  | 'woven_roving_400'
+  | 'woven_roving_600'
+  | 'multiaxial_800';
 
-export type MylarThickness = 50 | 75 | 100; // in microns (µm)
+export interface GlassPlyItem {
+  id: string;
+  fiberType: GlassFiberType;
+  customGsm?: number; // Optional custom GSM override for this specific ply
+}
+
+export type MylarThickness = number; // in microns (µm), e.g. 19, 25, 36, 50, 75, 100, 125
+
+export type LaborRateTierId = 'up_to_1mm' | '1_1_to_1_5mm' | '1_5mm_and_above';
 
 export interface FRPConfig {
   // Sheet specs
@@ -31,7 +49,7 @@ export interface FRPConfig {
   lengthMarginMm?: number; // End trim margin per longitudinal end (e.g. 20 to 150 mm, default 50mm)
   widthMm: number;         // Ultimate finished sheet width (e.g. 900, 1000, 1200, 1500)
   edgeMarginMm: number;    // Edge trimming & overlap margin (e.g. 30 to 100 mm, default 50mm)
-  thicknessMm: number;     // e.g. 1.2, 1.5, 2.0, 3.0, 5.0
+  thicknessMm: number;     // e.g. 1.0, 1.2, 1.5, 2.0, 3.0, 5.0
   profile: ProfileType;
   corrugatedDrawFactor?: number; // Profile draw factor for sinusoidal waves (1.12 to 1.15, standard 1.125 for 54" per 4ft, 1.146 for 55" per 4ft)
   color: ResinColor;
@@ -43,12 +61,15 @@ export interface FRPConfig {
   resinType?: ResinType;   // Orthophthalic, Isophthalic, DCPD, Vinyl Ester, Acrylic Modified
   pigmentPercent?: number;  // Pigment concentration (0.0% to 5.0%)
   fiberType: GlassFiberType;
-  glassLayers: number;     // 1 to 4
+  glassLayers: number;     // 1 to 20
+  plySchedule?: GlassPlyItem[]; // Individual ply-by-ply schedule allowing different fiber types & GSMs per ply
   resinToGlassRatio: number; // e.g. 0.65 (65% resin, 35% glass)
 
-  // Mylar film specs
-  mylarWidthMm: number;    // e.g. 1000, 1200, 1500
-  mylarThicknessUm: MylarThickness;
+  // Mylar film specs (Supports independent Bottom/1st Layer and Top/2nd Layer thickness in microns)
+  mylarWidthMm: number;          // e.g. 1000, 1200, 1500
+  mylarThicknessUm: MylarThickness;       // Primary / 1st (Bottom) layer thickness in µm (e.g. 25)
+  mylarBottomThicknessUm?: MylarThickness; // 1st (Bottom) Mylar layer thickness in µm (e.g. 25 µm)
+  mylarTopThicknessUm?: MylarThickness;    // 2nd (Top) Mylar layer thickness in µm (e.g. 100 µm)
   mylarFinish: 'gloss' | 'matte' | 'anti_uv';
 
   // Process / Curing specs
@@ -72,13 +93,33 @@ export interface FRPConfig {
   step5Method?: 'thermal_oven_bed' | 'fir_infrared_tunnel';
   step6Method?: 'manual_shear_trim' | 'laser_flying_saw';
 
-  // Custom Commercial & Raw Material Rate Overrides
+  // Custom Commercial & Raw Material Rate Overrides (All in ₹/kg including Labor)
   customResinRateInrPerKg?: number;       // Custom Resin Price in INR/kg
   customGlassRateInrPerKg?: number;       // Custom Glass Fiber Price in INR/kg
+  customPolymerMeshRateInrPerKg?: number; // Custom Polymer Mesh Price in INR/kg (Default: ₹320/kg)
+  customPrintedClothRateInrPerKg?: number; // Custom Printed Cloth Price in INR/kg (Default: ₹480/kg)
   customFillerRateInrPerKg?: number;      // Custom Mineral Filler Price in INR/kg
-  customCatalystRateInrPerLiter?: number; // Custom MEKP Catalyst Price in INR/L
-  customLaborRateInrPerSheet?: number;    // Custom Labor & Overhead Cost in INR/sheet
-  customUsdToInrRate?: number;             // USD to INR Exchange Rate
+  customCatalystRateInrPerKg?: number;    // Custom MEKP Catalyst Price in INR/kg
+  customCobaltRateInrPerKg?: number;      // Custom Cobalt Octoate Price in INR/kg
+  customPigmentRateInrPerKg?: number;     // Custom Pigment Paste Price in INR/kg
+  customStyreneRateInrPerKg?: number;     // Custom Styrene Monomer Price in INR/kg
+  customUvRateInrPerKg?: number;          // Custom UV Stabilizer Price in INR/kg
+  customMylarRateInrPerKg?: number;       // Custom Mylar Film Price in INR/kg (Legacy/Fallback)
+  customBottomMylarRateInrPerKg?: number; // Custom 25-Micron (1st / Bottom) Mylar Film Price in INR/kg (Default: ₹165/kg)
+  customTopMylarRateInrPerKg?: number;    // Custom 100-Micron (2nd / Top) Mylar Film Price in INR/kg (Default: ₹195/kg)
+  customMylarRatesByMicron?: Record<number, number>; // Per-micron rate lookup map (e.g. { 19: 160, 25: 165, 36: 172, 50: 180, 75: 188, 100: 195, 125: 210 })
+  customLaborRateInrPerKg?: number;       // Custom Labor & Installation Cost in INR/kg
+  // Thickness-based FRP Sheet Installation Labor Rate Tiers (₹/kg)
+  // Up to 1 mm: ₹30/kg | 1.1 mm to 1.5 mm: ₹23/kg | 1.5 mm and above: ₹17/kg
+  customLaborRateUpTo1mmInrPerKg?: number;        // Default: ₹30/kg
+  customLaborRate1_1To1_5mmInrPerKg?: number;     // Default: ₹23/kg
+  customLaborRateAbove1_5mmInrPerKg?: number;     // Default: ₹17/kg
+  laborRateTierOverride?: 'auto' | LaborRateTierId;
+  // Legacy rate fields kept optional for backward compatibility
+  customCatalystRateInrPerLiter?: number;
+  customCobaltRateInrPerLiter?: number;
+  customMylarRateInrPerM2?: number;
+  customLaborRateInrPerSheet?: number;
   customGstPercent?: number;              // Statutory GST Rate % (e.g. 18%)
   customProfitMarginPercent?: number;     // Manufacturer Commercial Profit Margin % (e.g. 15%)
 }
@@ -130,9 +171,25 @@ export interface MaterialCalculations {
   totalResinWeightKg: number;
   totalSheetWeightKg: number;
   catalystVolumeMl: number;
+  catalystWeightGrams: number;
+  catalystWeightKg: number;
   cobaltPercent: number;
   cobaltWeightGrams: number;
+  cobaltWeightKg: number;
   cobaltVolumeMl: number;
+  // Mylar Dual-Layer Specifications (1st Bottom Layer & Top Layer)
+  mylarBottomThicknessUm: number;
+  mylarTopThicknessUm: number;
+  mylarSingleSideAreaM2: number;
+  mylarTotalAreaM2: number;
+  bottomMylarWeightGrams: number;
+  bottomMylarWeightKg: number;
+  topMylarWeightGrams: number;
+  topMylarWeightKg: number;
+  totalMylarWeightGrams: number;
+  totalMylarWeightKg: number;
+  bottomMylarCostInr: number;
+  topMylarCostInr: number;
   ambientTempC: number;
   estimatedGelTimeMin: number;
   cobaltRecommendation: string;
@@ -141,7 +198,7 @@ export interface MaterialCalculations {
   fillerPercent: number;
   fillerWeightKg: number;
   fillerWeightGrams: number;
-  fillerCostUsdKg: number;
+  fillerCostInrKg: number;
   fillerEffectNote: string;
   // Styrene Reactive Diluent Monomer
   styreneDiluentPercent: number;
@@ -169,22 +226,57 @@ export interface MaterialCalculations {
   pigmentWeightKg: number;
   resinVolumeLiters: number;
   densityGcm3: number;
-  estimatedCostUsd: number;
   estimatedCostInr: number;
   pricePerM2Inr: number;
   pricePerSqFtInr: number;
   pricePerKgInr: number;
   gstAmountInr: number;
   totalCostWithGstInr: number;
-  // Active Rate Details
+  // Active Rate Details (All in ₹/kg including Labor)
   activeResinRateInrPerKg: number;
   activeGlassRateInrPerKg: number;
+  activePolymerMeshRateInrPerKg: number;
+  activePrintedClothRateInrPerKg: number;
   activeFillerRateInrPerKg: number;
+  activeCatalystRateInrPerKg: number;
+  activeCobaltRateInrPerKg: number;
+  activePigmentRateInrPerKg: number;
+  activeStyreneRateInrPerKg: number;
+  activeUvRateInrPerKg: number;
+  activeMylarRateInrPerKg: number;
+  activeBottomMylarRateInrPerKg: number;
+  activeTopMylarRateInrPerKg: number;
+  activeLaborRateInrPerKg: number;
+  activeLaborTierId: LaborRateTierId;
+  activeLaborTierLabel: string;
+  activeLaborRateUpTo1mmInrPerKg: number;
+  activeLaborRate1_1To1_5mmInrPerKg: number;
+  activeLaborRateAbove1_5mmInrPerKg: number;
+  // Polymer Mesh & Printed Cloth Breakdown
+  polymerMeshWeightKg: number;
+  polymerMeshWeightGrams: number;
+  printedClothWeightKg: number;
+  printedClothWeightGrams: number;
+  // Legacy compatibility active rate fields
   activeCatalystRateInrPerLiter: number;
+  activeCobaltRateInrPerLiter: number;
+  activeMylarRateInrPerM2: number;
   activeLaborRateInrPerSheet: number;
-  activeUsdToInrRate: number;
   activeGstPercent: number;
   activeProfitMarginPercent: number;
+  // Itemized Cost Breakdown (INR)
+  resinCostInr: number;
+  glassCostInr: number;
+  polymerMeshCostInr: number;
+  printedClothCostInr: number;
+  fillerCostInr: number;
+  catalystCostInr: number;
+  cobaltCostInr: number;
+  pigmentCostInr: number;
+  styreneCostInr: number;
+  uvCostInr: number;
+  mylarCostInr: number;
+  laborEnergyCostInr: number;
   profitAmountInr: number;
   exFactoryCostInr: number;
   bisStandards: string[];
@@ -205,7 +297,6 @@ export interface MaterialCalculations {
     typeKey: ResinType;
     name: string;
     baseTransmittance: number;
-    costPerKgUsd: number;
     costPerKgInr: number;
     hdtC: number;
     uvGrade: string;
@@ -223,6 +314,18 @@ export interface MaterialCalculations {
     typicalApplications: string;
     weaveStructure: string;
   };
+  plyScheduleBreakdown: {
+    plyNumber: number;
+    id: string;
+    fiberType: GlassFiberType;
+    name: string;
+    shortName: string;
+    gsm: number;
+    recommendedResinRatio: number;
+    weaveStructure: string;
+  }[];
+  isHybridPlySchedule: boolean;
+  plySummaryText: string;
   structuralLoad: StructuralLoadSpec;
 }
 

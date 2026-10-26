@@ -39,6 +39,7 @@ import {
   calculateBatchPigmentComponents
 } from '../data/ralColors';
 import { soundFx } from '../utils/soundEffects';
+import { EditableNumberInput } from './EditableNumberInput';
 
 export interface GlowColorOption {
   id: string;
@@ -632,9 +633,19 @@ export const ColorMakerModal: React.FC<ColorMakerModalProps> = ({
                     <span className="font-semibold text-slate-300 flex items-center gap-1">
                       <Pipette className="w-3.5 h-3.5 text-cyan-400" /> Pigment Paste Loading:
                     </span>
-                    <span className="font-mono font-bold text-white bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
-                      {customPigmentPhr.toFixed(1)}% PHR ({pigmentBreakdown.totalPigmentGrams.toFixed(1)} g)
-                    </span>
+                    <div className="flex items-center gap-1 font-mono">
+                      <EditableNumberInput
+                        value={customPigmentPhr}
+                        onChange={(val) => setCustomPigmentPhr(val)}
+                        min={0.1}
+                        max={10.0}
+                        step={0.1}
+                        className="w-16 bg-slate-950 border border-purple-500/40 rounded px-1.5 py-0.5 text-right text-xs text-white font-mono font-bold focus:outline-none focus:border-purple-400"
+                      />
+                      <span className="text-xs font-bold text-purple-300">
+                        % PHR ({pigmentBreakdown.totalPigmentGrams.toFixed(1)} g)
+                      </span>
+                    </div>
                   </div>
 
                   <input
@@ -1615,9 +1626,19 @@ export const ColorMakerModal: React.FC<ColorMakerModalProps> = ({
                     <span className="font-semibold text-slate-200 flex items-center gap-1">
                       <Scale className="w-3.5 h-3.5 text-lime-400" /> Phosphor Loading (PHR):
                     </span>
-                    <span className="font-mono font-bold text-lime-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-700">
-                      {glowPhr.toFixed(1)}% PHR ({scaledGlowPowderKg.toFixed(2)} kg)
-                    </span>
+                    <div className="flex items-center gap-1 font-mono">
+                      <EditableNumberInput
+                        value={glowPhr}
+                        onChange={(val) => setGlowPhr(val)}
+                        min={1}
+                        max={50}
+                        step={1}
+                        className="w-16 bg-slate-950 border border-lime-500/40 rounded px-1.5 py-0.5 text-right text-xs text-lime-300 font-mono font-bold focus:outline-none focus:border-lime-400"
+                      />
+                      <span className="text-xs font-bold text-lime-300">
+                        % PHR ({scaledGlowPowderKg.toFixed(2)} kg)
+                      </span>
+                    </div>
                   </div>
 
                   <input
@@ -1768,14 +1789,13 @@ export const ColorMakerModal: React.FC<ColorMakerModalProps> = ({
                       className="flex-1 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-lime-400"
                     />
                     <div className="flex items-center gap-1 shrink-0 font-mono text-[11px]">
-                      <input
-                        type="number"
-                        min="0.5"
-                        max="1000"
-                        step="0.5"
+                      <EditableNumberInput
                         value={glowBatchResinKg}
-                        onChange={(e) => setGlowBatchResinKg(Math.max(0.5, Number(e.target.value)))}
-                        className="w-16 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white font-bold text-xs focus:outline-none focus:border-lime-400"
+                        onChange={(val) => setGlowBatchResinKg(val)}
+                        min={0.1}
+                        max={5000}
+                        step={0.5}
+                        className="w-18 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white font-bold text-xs focus:outline-none focus:border-lime-400"
                       />
                       <span className="text-slate-400 text-xs">kg</span>
                     </div>

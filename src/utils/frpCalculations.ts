@@ -4,11 +4,13 @@ import {
   TableSpec,
   ResinType,
   GlassFiberType,
+  GlassPlyItem,
   StructuralLoadSpec,
   PurlinSpanLoadPoint,
   SupportCondition,
   DeflectionLimitCriteria,
   BoxBaseDimensionResult,
+  LaborRateTierId,
 } from '../types';
 
 import { RAL_COLORS, findRalColor, RalColorSpec } from '../data/ralColors';
@@ -16,6 +18,7 @@ import { RAL_COLORS, findRalColor, RalColorSpec } from '../data/ralColors';
 export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   typeKey: GlassFiberType;
   name: string;
+  shortName: string;
   gsmPerLayer: number;
   recommendedResinRatio: number;
   recommendedResinRatioPercent: number;
@@ -24,9 +27,58 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   typicalApplications: string;
   weaveStructure: string;
 }> = {
+  surface_veil_30: {
+    typeKey: 'surface_veil_30',
+    name: 'C-Glass Surface Tissue Veil (30 gsm)',
+    shortName: 'Surface Veil 30 gsm',
+    gsmPerLayer: 30,
+    recommendedResinRatio: 0.85,
+    recommendedResinRatioPercent: 85,
+    resinToGlassRatioText: '85:15 Resin:Glass (Resin-Rich Barrier Skin)',
+    description: 'Ultra-fine C-glass non-woven tissue veil applied on the outer weathering or chemical-contact surface to create a resin-rich barrier and prevent fiber blooming.',
+    typicalApplications: 'Outer UV Weathering Skin, Chemical Barrier Layer, Smooth Gelcoat Backing',
+    weaveStructure: 'Fine Non-Woven C-Glass Filament Tissue Veil',
+  },
+  polymer_mesh: {
+    typeKey: 'polymer_mesh',
+    name: 'High-Tenacity Polymer Reinforcing Mesh (5 gsm)',
+    shortName: 'Polymer Mesh 5 gsm',
+    gsmPerLayer: 5,
+    recommendedResinRatio: 0.72,
+    recommendedResinRatioPercent: 72,
+    resinToGlassRatioText: '72:28 Resin:Mesh (Ultra-Light 5 gsm Polymer Grid)',
+    description: 'Ultra-lightweight 5 gsm biaxial high-tenacity synthetic polymer mesh (PP/PET/HDPE grid) embedded in the FRP laminate for tear resistance, hailstone protection, and anti-shatter reinforcement with minimal weight addition.',
+    typicalApplications: 'Impact-Resistant Skylights, Anti-Shatter Security Roofing, Hail-Proof Canopies, Hybrid CSM + 5 gsm Polymer Mesh Laminates',
+    weaveStructure: 'Open-Grid Biaxial Extruded / Woven Polymer Mesh (5 gsm • 5×5 mm Grid)',
+  },
+  printed_cloth: {
+    typeKey: 'printed_cloth',
+    name: 'Decorative Printed Cloth / Designer Fabric (100 gsm)',
+    shortName: 'Printed Cloth 100 gsm',
+    gsmPerLayer: 100,
+    recommendedResinRatio: 0.75,
+    recommendedResinRatioPercent: 75,
+    resinToGlassRatioText: '75:25 Resin:Cloth (Resin-Impregnated Decorative Layer)',
+    description: 'Resin-absorbent printed textile / designer cloth interlayer (floral, woodgrain, marble, or geometric motifs) encapsulated beneath clear resin & surface veil for decorative FRP sheets, doors, and partitions.',
+    typicalApplications: 'Decorative FRP Sheets, Designer Bathroom Doors, Printed Balcony Cladding, Interior Partitions & False Ceilings',
+    weaveStructure: 'Fine Plain-Weave Printed Textile Cloth (Resin-Permeable)',
+  },
+  csm_225: {
+    typeKey: 'csm_225',
+    name: 'Chopped Strand Mat (CSM 225 gsm)',
+    shortName: 'CSM 225 gsm',
+    gsmPerLayer: 225,
+    recommendedResinRatio: 0.72,
+    recommendedResinRatioPercent: 72,
+    resinToGlassRatioText: '72:28 Resin:Glass (2.57:1 Weight Ratio)',
+    description: 'Fine lightweight emulsion-bonded chopped strand mat for thin translucent sheets and skin plies over woven roving.',
+    typicalApplications: 'Thin Translucent Skylights, Skin Ply in Hybrid Laminates, Curved Profiles',
+    weaveStructure: 'Fine Random Chopped Strands with High-Clarity Emulsion Binder',
+  },
   csm_300: {
     typeKey: 'csm_300',
     name: 'Chopped Strand Mat (CSM 300 gsm)',
+    shortName: 'CSM 300 gsm',
     gsmPerLayer: 300,
     recommendedResinRatio: 0.70,
     recommendedResinRatioPercent: 70,
@@ -38,6 +90,7 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   csm_450: {
     typeKey: 'csm_450',
     name: 'Chopped Strand Mat (CSM 450 gsm)',
+    shortName: 'CSM 450 gsm',
     gsmPerLayer: 450,
     recommendedResinRatio: 0.67,
     recommendedResinRatioPercent: 67,
@@ -49,6 +102,7 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   csm_600: {
     typeKey: 'csm_600',
     name: 'Chopped Strand Mat (CSM 600 gsm)',
+    shortName: 'CSM 600 gsm',
     gsmPerLayer: 600,
     recommendedResinRatio: 0.65,
     recommendedResinRatioPercent: 65,
@@ -57,9 +111,22 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
     typicalApplications: 'Heavy-Duty Industrial Roofing, High-Wind Coastal Canopies, Corrosion Barriers',
     weaveStructure: 'Dense Random Chopped Mat',
   },
+  woven_roving_400: {
+    typeKey: 'woven_roving_400',
+    name: 'Woven Roving Fabric (400 gsm)',
+    shortName: 'Woven Roving 400 gsm',
+    gsmPerLayer: 400,
+    recommendedResinRatio: 0.55,
+    recommendedResinRatioPercent: 55,
+    resinToGlassRatioText: '55:45 Resin:Glass (1.22:1 Weight Ratio)',
+    description: 'Medium-weight bi-directional 0°/90° woven continuous E-glass roving ideal for intermediate core reinforcement between CSM skins.',
+    typicalApplications: 'Hybrid CSM + WR Structural Sheets, Box Base Plates, Medium-Span Roofing',
+    weaveStructure: 'Balanced Plain Weave Continuous Rovings (0°/90°)',
+  },
   woven_roving_600: {
     typeKey: 'woven_roving_600',
     name: 'Woven Roving Fabric (600 gsm)',
+    shortName: 'Woven Roving 600 gsm',
     gsmPerLayer: 600,
     recommendedResinRatio: 0.52,
     recommendedResinRatioPercent: 52,
@@ -71,6 +138,7 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   multiaxial_800: {
     typeKey: 'multiaxial_800',
     name: 'Multiaxial Biaxial Stitch Mat (800 gsm)',
+    shortName: 'Multiaxial 800 gsm',
     gsmPerLayer: 800,
     recommendedResinRatio: 0.48,
     recommendedResinRatioPercent: 48,
@@ -81,11 +149,45 @@ export const GLASS_FIBER_SPECS: Record<GlassFiberType, {
   },
 };
 
+export function resolvePlySchedule(config: FRPConfig): MaterialCalculations['plyScheduleBreakdown'] {
+  if (config.plySchedule && config.plySchedule.length > 0) {
+    return config.plySchedule.map((ply, idx) => {
+      const spec = GLASS_FIBER_SPECS[ply.fiberType] || GLASS_FIBER_SPECS['csm_450'];
+      const gsm = ply.customGsm && ply.customGsm > 0 ? ply.customGsm : spec.gsmPerLayer;
+      return {
+        plyNumber: idx + 1,
+        id: ply.id || `ply-${idx + 1}`,
+        fiberType: ply.fiberType,
+        name: spec.name,
+        shortName:
+          ply.customGsm && ply.customGsm !== spec.gsmPerLayer
+            ? `${spec.shortName.replace(/\s+\d+\s*gsm$/i, '')} ${gsm} gsm`
+            : spec.shortName,
+        gsm,
+        recommendedResinRatio: spec.recommendedResinRatio,
+        weaveStructure: spec.weaveStructure,
+      };
+    });
+  }
+
+  const count = Math.max(1, config.glassLayers || 1);
+  const spec = GLASS_FIBER_SPECS[config.fiberType] || GLASS_FIBER_SPECS['csm_450'];
+  return Array.from({ length: count }, (_, idx) => ({
+    plyNumber: idx + 1,
+    id: `ply-${idx + 1}`,
+    fiberType: spec.typeKey,
+    name: spec.name,
+    shortName: spec.shortName,
+    gsm: spec.gsmPerLayer,
+    recommendedResinRatio: spec.recommendedResinRatio,
+    weaveStructure: spec.weaveStructure,
+  }));
+}
+
 export const RESIN_SPECS: Record<ResinType, {
   typeKey: ResinType;
   name: string;
   baseTransmittance: number;
-  costPerKgUsd: number;
   costPerKgInr: number;
   hdtC: number;
   uvGrade: string;
@@ -97,7 +199,6 @@ export const RESIN_SPECS: Record<ResinType, {
     typeKey: 'orthophthalic',
     name: 'General Purpose Orthophthalic Polyester',
     baseTransmittance: 85,
-    costPerKgUsd: 3.20,
     costPerKgInr: 267,
     hdtC: 72,
     uvGrade: 'Standard UV Stabilized',
@@ -109,7 +210,6 @@ export const RESIN_SPECS: Record<ResinType, {
     typeKey: 'isophthalic',
     name: 'Isophthalic High-Performance Industrial Resin',
     baseTransmittance: 89,
-    costPerKgUsd: 4.20,
     costPerKgInr: 351,
     hdtC: 85,
     uvGrade: 'Enhanced UV Weatherable Grade',
@@ -121,7 +221,6 @@ export const RESIN_SPECS: Record<ResinType, {
     typeKey: 'dicyclopentadiene',
     name: 'DCPD Low-Styrene Eco Polyester',
     baseTransmittance: 83,
-    costPerKgUsd: 2.95,
     costPerKgInr: 246,
     hdtC: 75,
     uvGrade: 'Class-B Outdoor Weathering',
@@ -133,7 +232,6 @@ export const RESIN_SPECS: Record<ResinType, {
     typeKey: 'vinyl_ester',
     name: 'Epoxy Vinyl Ester Heavy Corrosion Grade',
     baseTransmittance: 78,
-    costPerKgUsd: 6.80,
     costPerKgInr: 568,
     hdtC: 105,
     uvGrade: 'Heavy Industrial Shielded',
@@ -145,7 +243,6 @@ export const RESIN_SPECS: Record<ResinType, {
     typeKey: 'acrylic_modified',
     name: 'Acrylic-Modified Crystal High-Clarity Resin',
     baseTransmittance: 95,
-    costPerKgUsd: 5.40,
     costPerKgInr: 451,
     hdtC: 80,
     uvGrade: '25-Year Non-Yellowing Crystal UV Warranty',
@@ -254,11 +351,21 @@ export function calculateStructuralLoadCapacity(
   // Flexural Rigidity D = E * I in N*m^2 per meter
   const flexuralRigidityNm2PerM = E_Pa * I_m4;
 
-  // Base Ultimate Flexural Strength (MPa) per ASTM D790 / IS 12866
-  let ultimateFlexuralStrengthMpa = 150; // base CSM
-  if (config.fiberType.includes('woven')) ultimateFlexuralStrengthMpa = 225;
-  if (config.fiberType.includes('multiaxial')) ultimateFlexuralStrengthMpa = 275;
-  if (config.glassLayers > 2) ultimateFlexuralStrengthMpa *= 1.25;
+  // Base Ultimate Flexural Strength (MPa) per ASTM D790 / IS 12866 weighted across plies
+  const plies = resolvePlySchedule(config);
+  const totalPlyGsm = Math.max(1, plies.reduce((sum, p) => sum + p.gsm, 0));
+  let weightedFlexStrength = 0;
+  for (const ply of plies) {
+    let plyStrength = 150;
+    if (ply.fiberType.includes('woven')) plyStrength = 225;
+    else if (ply.fiberType.includes('multiaxial')) plyStrength = 275;
+    else if (ply.fiberType === 'polymer_mesh') plyStrength = 165;
+    else if (ply.fiberType === 'printed_cloth') plyStrength = 125;
+    else if (ply.fiberType === 'surface_veil_30') plyStrength = 120;
+    weightedFlexStrength += plyStrength * (ply.gsm / totalPlyGsm);
+  }
+  let ultimateFlexuralStrengthMpa = weightedFlexStrength;
+  if (plies.length > 2) ultimateFlexuralStrengthMpa *= 1.25;
 
   const resinType = config.resinType ?? 'orthophthalic';
   if (resinType === 'vinyl_ester') ultimateFlexuralStrengthMpa *= 1.25;
@@ -645,6 +752,121 @@ export function evaluateBoxBaseCalculation(
   };
 }
 
+// Standard BOPET Mylar Carrier Film Rates by Micron Gauge (₹/kg)
+export const DEFAULT_MYLAR_RATES_BY_MICRON: Record<number, number> = {
+  19: 160,
+  25: 165,
+  36: 172,
+  50: 180,
+  75: 188,
+  100: 195,
+  125: 210,
+};
+
+export function getDefaultMylarRateForMicron(micron: number): number {
+  const rounded = Math.round(micron);
+  if (DEFAULT_MYLAR_RATES_BY_MICRON[rounded] !== undefined) {
+    return DEFAULT_MYLAR_RATES_BY_MICRON[rounded];
+  }
+  if (rounded <= 19) return 160;
+  if (rounded <= 25) return 165;
+  if (rounded <= 36) return 172;
+  if (rounded <= 50) return 180;
+  if (rounded <= 75) return 188;
+  if (rounded <= 100) return 195;
+  return 210;
+}
+
+export function getMylarRateForMicron(micron: number, config?: Partial<FRPConfig>): number {
+  const rounded = Math.round(micron);
+  const savedForMicron = config?.customMylarRatesByMicron?.[rounded];
+  if (typeof savedForMicron === 'number' && !Number.isNaN(savedForMicron)) {
+    return savedForMicron;
+  }
+  return getDefaultMylarRateForMicron(rounded);
+}
+
+/**
+ * Updates 1st (Bottom) and/or 2nd (Top) Mylar micron thickness and automatically
+ * fetches the corresponding ₹/kg rate for the selected micron(s).
+ */
+export function applyMylarMicronChange(
+  config: FRPConfig,
+  bottomUm?: number,
+  topUm?: number
+): FRPConfig {
+  const nextBottomUm =
+    bottomUm !== undefined
+      ? bottomUm
+      : (config.mylarBottomThicknessUm ?? config.mylarThicknessUm ?? 25);
+  const nextTopUm =
+    topUm !== undefined
+      ? topUm
+      : (config.mylarTopThicknessUm ?? config.mylarThicknessUm ?? 100);
+
+  const nextBottomRate =
+    bottomUm !== undefined
+      ? getMylarRateForMicron(nextBottomUm, config)
+      : (config.customBottomMylarRateInrPerKg ?? getMylarRateForMicron(nextBottomUm, config));
+
+  const nextTopRate =
+    topUm !== undefined
+      ? getMylarRateForMicron(nextTopUm, config)
+      : (config.customTopMylarRateInrPerKg ?? getMylarRateForMicron(nextTopUm, config));
+
+  return {
+    ...config,
+    mylarThicknessUm: nextBottomUm,
+    mylarBottomThicknessUm: nextBottomUm,
+    mylarTopThicknessUm: nextTopUm,
+    customBottomMylarRateInrPerKg: nextBottomRate,
+    customMylarRateInrPerKg: nextBottomRate,
+    customTopMylarRateInrPerKg: nextTopRate,
+  };
+}
+
+/**
+ * Updates the ₹/kg rate for the active 1st (Bottom) or 2nd (Top) Mylar layer
+ * and remembers it in customMylarRatesByMicron so switching microns auto-fetches it later.
+ */
+export function applyMylarRateChange(
+  config: FRPConfig,
+  layer: 'bottom' | 'top',
+  rate: number
+): FRPConfig {
+  const currentBottomUm = Math.round(
+    config.mylarBottomThicknessUm ?? config.mylarThicknessUm ?? 25
+  );
+  const currentTopUm = Math.round(
+    config.mylarTopThicknessUm ?? config.mylarThicknessUm ?? 100
+  );
+  const targetUm = layer === 'bottom' ? currentBottomUm : currentTopUm;
+
+  const updatedMicronMap: Record<number, number> = {
+    ...(config.customMylarRatesByMicron || {}),
+    [targetUm]: rate,
+  };
+
+  if (layer === 'bottom') {
+    return {
+      ...config,
+      customBottomMylarRateInrPerKg: rate,
+      customMylarRateInrPerKg: rate,
+      ...(currentTopUm === currentBottomUm ? { customTopMylarRateInrPerKg: rate } : {}),
+      customMylarRatesByMicron: updatedMicronMap,
+    };
+  }
+
+  return {
+    ...config,
+    customTopMylarRateInrPerKg: rate,
+    ...(currentBottomUm === currentTopUm
+      ? { customBottomMylarRateInrPerKg: rate, customMylarRateInrPerKg: rate }
+      : {}),
+    customMylarRatesByMicron: updatedMicronMap,
+  };
+}
+
 export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const lengthM = config.lengthMm / 1000;
   const lengthMarginMm = config.lengthMarginMm ?? 50;
@@ -683,12 +905,54 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const effectiveAreaM2 = rawLengthM * flatWidthM;
   const sheetVolumeCm3 = effectiveAreaM2 * (config.thicknessMm / 10) * 10000; // in cm³
 
-  // Fiberglass GSM
-  const activeGlassSpec = GLASS_FIBER_SPECS[config.fiberType] || GLASS_FIBER_SPECS['csm_450'];
-  const gsmPerLayer = activeGlassSpec.gsmPerLayer;
+  // Fiberglass GSM & Multi-Ply Schedule Resolution
+  const plyScheduleBreakdown = resolvePlySchedule(config);
+  const firstFiberType = plyScheduleBreakdown[0]?.fiberType || config.fiberType;
+  const isHybridPlySchedule = plyScheduleBreakdown.some(
+    (p) => p.fiberType !== firstFiberType || p.gsm !== plyScheduleBreakdown[0].gsm
+  );
 
-  const totalGlassGsm = gsmPerLayer * config.glassLayers;
+  const totalGlassGsm = plyScheduleBreakdown.reduce((sum, p) => sum + p.gsm, 0);
+  const weightedRecResinRatio =
+    totalGlassGsm > 0
+      ? parseFloat(
+          (
+            plyScheduleBreakdown.reduce((sum, p) => sum + p.recommendedResinRatio * p.gsm, 0) /
+            totalGlassGsm
+          ).toFixed(2)
+        )
+      : 0.67;
+
+  const baseGlassSpec = GLASS_FIBER_SPECS[config.fiberType] || GLASS_FIBER_SPECS['csm_450'];
+  const plySummaryText = isHybridPlySchedule
+    ? `${plyScheduleBreakdown.length} Plies: ${plyScheduleBreakdown.map((p) => p.shortName.replace(' gsm', '')).join(' + ')} (${totalGlassGsm} GSM)`
+    : `${plyScheduleBreakdown.length}× ${plyScheduleBreakdown[0]?.shortName || baseGlassSpec.shortName} (${totalGlassGsm} GSM)`;
+
+  const activeGlassSpec = isHybridPlySchedule
+    ? {
+        ...baseGlassSpec,
+        name: `Hybrid Stack: ${plyScheduleBreakdown.map((p) => p.shortName.replace(' gsm', '')).join(' + ')} (${totalGlassGsm} gsm)`,
+        gsmPerLayer: Math.round(totalGlassGsm / Math.max(1, plyScheduleBreakdown.length)),
+        recommendedResinRatio: weightedRecResinRatio,
+        recommendedResinRatioPercent: Math.round(weightedRecResinRatio * 100),
+        resinToGlassRatioText: `${Math.round(weightedRecResinRatio * 100)}:${100 - Math.round(weightedRecResinRatio * 100)} Weighted Hybrid Resin:Glass`,
+        weaveStructure: `Multi-Ply Hybrid (${plyScheduleBreakdown.map((p) => p.shortName).join(' / ')})`,
+      }
+    : baseGlassSpec;
+
   const totalGlassWeightKg = (totalGlassGsm * effectiveAreaM2) / 1000;
+  const polymerMeshGsm = plyScheduleBreakdown
+    .filter((p) => p.fiberType === 'polymer_mesh')
+    .reduce((sum, p) => sum + p.gsm, 0);
+  const printedClothGsm = plyScheduleBreakdown
+    .filter((p) => p.fiberType === 'printed_cloth')
+    .reduce((sum, p) => sum + p.gsm, 0);
+  const glassOnlyGsm = Math.max(0, totalGlassGsm - polymerMeshGsm - printedClothGsm);
+  const glassOnlyWeightKg = (glassOnlyGsm * effectiveAreaM2) / 1000;
+  const polymerMeshWeightKg = (polymerMeshGsm * effectiveAreaM2) / 1000;
+  const polymerMeshWeightGrams = polymerMeshWeightKg * 1000;
+  const printedClothWeightKg = (printedClothGsm * effectiveAreaM2) / 1000;
+  const printedClothWeightGrams = printedClothWeightKg * 1000;
 
   // Resin calculation based on glass weight & resin ratio
   // Resin fraction = config.resinToGlassRatio, Glass fraction = (1 - config.resinToGlassRatio)
@@ -698,20 +962,20 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const fillerType = config.fillerType ?? 'none';
   const fillerPercent = config.fillerPercent ?? 0;
   
-  let fillerCostUsdKg = 0.22; // $0.22/kg (~₹18/kg) for Calcium Carbonate
+  let fillerCostInrKg = 18; // ₹18/kg for Calcium Carbonate
   let fillerDensityGcm3 = 2.71;
   let fillerEffectNote = "Unfilled pure resin matrix. Ideal for maximum optical clarity and translucent roofing.";
 
   if (fillerType === 'calcium_carbonate') {
-    fillerCostUsdKg = 0.22; // $0.22/kg (~₹18/kg)
+    fillerCostInrKg = 18;
     fillerDensityGcm3 = 2.71;
     fillerEffectNote = `Calcium Carbonate (CaCO₃) @ ${fillerPercent}% PHR lowers unit cost significantly by bulking the matrix.`;
   } else if (fillerType === 'ath_flame_retardant') {
-    fillerCostUsdKg = 0.66; // $0.66/kg (~₹55/kg)
+    fillerCostInrKg = 55;
     fillerDensityGcm3 = 2.42;
     fillerEffectNote = `Aluminium Trihydrate (ATH) @ ${fillerPercent}% PHR delivers UL94 V-0 flame retardancy & low-smoke release.`;
   } else if (fillerType === 'silica_powder') {
-    fillerCostUsdKg = 0.34; // $0.34/kg (~₹28/kg)
+    fillerCostInrKg = 28;
     fillerDensityGcm3 = 2.65;
     fillerEffectNote = `Silica / Quartz Powder @ ${fillerPercent}% PHR enhances surface hardness, scratch resistance & flexural modulus.`;
   } else if (fillerPercent > 0) {
@@ -728,13 +992,30 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   const resinDensityGcm3 = 1.12;
   const resinVolumeLiters = totalResinWeightKg / resinDensityGcm3;
 
-  // MEKP Catalyst ML (density ~ 1.1 g/ml)
-  const catalystVolumeMl = (totalResinWeightKg * 1000 * (config.catalystPercent / 100)) / 1.1;
+  // MEKP Catalyst Weight & Volume (density ~ 1.1 g/ml)
+  const catalystWeightGrams = totalResinWeightKg * 1000 * (config.catalystPercent / 100);
+  const catalystWeightKg = catalystWeightGrams / 1000;
+  const catalystVolumeMl = catalystWeightGrams / 1.1;
 
   // Cobalt Accelerator/Promoter (Cobalt Octoate/Naphthenate 6%, density ~ 0.96 g/ml)
   const cobaltPercent = config.cobaltPercent !== undefined ? config.cobaltPercent : 0.2;
   const cobaltWeightGrams = totalResinWeightKg * 1000 * (cobaltPercent / 100);
+  const cobaltWeightKg = cobaltWeightGrams / 1000;
   const cobaltVolumeMl = cobaltWeightGrams / 0.96;
+
+  // Dual-Layer Mylar Carrier Film Calculations (1st Bottom Layer & Top Layer)
+  // BOPET Mylar density = 1.39 g/cm³ => 1 m² of 1 µm thickness weighs 1.39 grams
+  const mylarBottomThicknessUm = config.mylarBottomThicknessUm ?? config.mylarThicknessUm ?? 25;
+  const mylarTopThicknessUm = config.mylarTopThicknessUm ?? config.mylarThicknessUm ?? 100;
+  const maxMylarThicknessUm = Math.max(mylarBottomThicknessUm, mylarTopThicknessUm);
+  const mylarSingleSideAreaM2 = (config.mylarWidthMm / 1000) * rawLengthM;
+  const mylarTotalAreaM2 = mylarSingleSideAreaM2 * 2;
+  const bottomMylarWeightGrams = mylarSingleSideAreaM2 * mylarBottomThicknessUm * 1.39;
+  const bottomMylarWeightKg = bottomMylarWeightGrams / 1000;
+  const topMylarWeightGrams = mylarSingleSideAreaM2 * mylarTopThicknessUm * 1.39;
+  const topMylarWeightKg = topMylarWeightGrams / 1000;
+  const totalMylarWeightGrams = bottomMylarWeightGrams + topMylarWeightGrams;
+  const totalMylarWeightKg = totalMylarWeightGrams / 1000;
 
   // Ambient Temperature & Gel-Time Reaction Dynamics
   const ambientTempC = config.ambientTempC !== undefined ? config.ambientTempC : 25;
@@ -814,7 +1095,7 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   // Yellowing Index (YI) projection over 0, 5, 10, 15, 20 years (ASTM E313 / ASTM D3841)
   const baseResinYiFactor = activeResinType === 'acrylic_modified' ? 0.35 : (activeResinType === 'isophthalic' ? 0.65 : 1.0);
   const uvYiInhibitionFactor = uvStabilizerType === 'synergistic_uva_hals' ? 0.30 : (uvStabilizerType === 'none' ? 1.9 : 0.55);
-  const mylarShieldFactor = config.mylarFinish === 'anti_uv' || config.mylarThicknessUm >= 75 ? 0.65 : 1.0;
+  const mylarShieldFactor = config.mylarFinish === 'anti_uv' || maxMylarThicknessUm >= 75 ? 0.65 : 1.0;
 
   const yellowingIndexProjection = {
     year0: parseFloat((2.0 * baseResinYiFactor).toFixed(1)),
@@ -866,29 +1147,110 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
   // Combined cured density
   const densityGcm3 = totalSheetWeightKg / (sheetVolumeCm3 / 1000);
 
-  // Cost estimates & Custom Rate Overrides
-  const usdToInrRate = config.customUsdToInrRate ?? 83.5;
-  const activeResinRateInrPerKg = config.customResinRateInrPerKg ?? Math.round(activeResinSpec.costPerKgUsd * usdToInrRate);
-  const activeGlassRateInrPerKg = config.customGlassRateInrPerKg ?? Math.round(2.8 * usdToInrRate);
-  const activeFillerRateInrPerKg = config.customFillerRateInrPerKg ?? Math.round(fillerCostUsdKg * usdToInrRate);
-  const activeCatalystRateInrPerLiter = config.customCatalystRateInrPerLiter ?? Math.round(8.0 * usdToInrRate);
-  const activeLaborRateInrPerSheet = config.customLaborRateInrPerSheet ?? Math.round(15.0 * (config.lengthMm / 1800) * usdToInrRate);
+  // Cost estimates & Custom Rate Overrides (All Raw Material & Labor Rates in ₹/kg)
+  const activeResinRateInrPerKg = config.customResinRateInrPerKg ?? activeResinSpec.costPerKgInr;
+  const activeGlassRateInrPerKg = config.customGlassRateInrPerKg ?? 235;
+  const activePolymerMeshRateInrPerKg = config.customPolymerMeshRateInrPerKg ?? 320;
+  const activePrintedClothRateInrPerKg = config.customPrintedClothRateInrPerKg ?? 480;
+  const activeFillerRateInrPerKg = config.customFillerRateInrPerKg ?? fillerCostInrKg;
+  const activeCatalystRateInrPerKg = config.customCatalystRateInrPerKg ?? 610;
+  const activeCobaltRateInrPerKg = config.customCobaltRateInrPerKg ?? 885;
+  const activePigmentRateInrPerKg = config.customPigmentRateInrPerKg ?? 450;
+  const activeStyreneRateInrPerKg = config.customStyreneRateInrPerKg ?? 145;
+  const activeUvRateInrPerKg = config.customUvRateInrPerKg ?? 1800;
+
+  // Separate Mylar Carrier Film Rates for 1st/Bottom Layer (e.g. 25µm: ₹165/kg) and Top Layer (e.g. 100µm: ₹195/kg)
+  // Auto-fetches rate by selected micron thickness from per-micron custom map or standard micron table
+  const defaultBottomMylarRate = getMylarRateForMicron(mylarBottomThicknessUm, config);
+  const defaultTopMylarRate = getMylarRateForMicron(mylarTopThicknessUm, config);
+  const activeBottomMylarRateInrPerKg =
+    config.customMylarRatesByMicron?.[Math.round(mylarBottomThicknessUm)] ??
+    config.customBottomMylarRateInrPerKg ??
+    config.customMylarRateInrPerKg ??
+    defaultBottomMylarRate;
+  const activeTopMylarRateInrPerKg =
+    config.customMylarRatesByMicron?.[Math.round(mylarTopThicknessUm)] ??
+    config.customTopMylarRateInrPerKg ??
+    defaultTopMylarRate;
+
+  // Thickness-based FRP Sheet Installation Labor Rate Tiers (₹/kg):
+  // - Up to 1 mm: ₹30/kg
+  // - 1.1 mm to 1.5 mm: ₹23/kg
+  // - 1.5 mm and above: ₹17/kg
+  const activeLaborRateUpTo1mmInrPerKg = config.customLaborRateUpTo1mmInrPerKg ?? 30;
+  const activeLaborRate1_1To1_5mmInrPerKg = config.customLaborRate1_1To1_5mmInrPerKg ?? 23;
+  const activeLaborRateAbove1_5mmInrPerKg = config.customLaborRateAbove1_5mmInrPerKg ?? 17;
+
+  let activeLaborTierId: LaborRateTierId = '1_5mm_and_above';
+  if (config.laborRateTierOverride && config.laborRateTierOverride !== 'auto') {
+    activeLaborTierId = config.laborRateTierOverride;
+  } else if (config.thicknessMm <= 1.0) {
+    activeLaborTierId = 'up_to_1mm';
+  } else if (config.thicknessMm <= 1.5) {
+    activeLaborTierId = '1_1_to_1_5mm';
+  } else {
+    activeLaborTierId = '1_5mm_and_above';
+  }
+
+  const tierDefaultLaborRateInrPerKg =
+    activeLaborTierId === 'up_to_1mm'
+      ? activeLaborRateUpTo1mmInrPerKg
+      : activeLaborTierId === '1_1_to_1_5mm'
+      ? activeLaborRate1_1To1_5mmInrPerKg
+      : activeLaborRateAbove1_5mmInrPerKg;
+
+  const activeLaborRateInrPerKg = config.customLaborRateInrPerKg ?? tierDefaultLaborRateInrPerKg;
+
+  const activeLaborTierLabel =
+    activeLaborTierId === 'up_to_1mm'
+      ? `Up to 1 mm (₹${activeLaborRateInrPerKg}/kg)`
+      : activeLaborTierId === '1_1_to_1_5mm'
+      ? `1.1 mm to 1.5 mm (₹${activeLaborRateInrPerKg}/kg)`
+      : `1.5 mm and above (₹${activeLaborRateInrPerKg}/kg)`;
+
   const activeGstPercent = config.customGstPercent ?? 18;
   const activeProfitMarginPercent = config.customProfitMarginPercent ?? 0;
 
+  // Itemized Costs (Every single component calculated via Weight in kg × Rate in ₹/kg)
   const resinCostInr = totalResinWeightKg * activeResinRateInrPerKg;
-  const glassCostInr = totalGlassWeightKg * activeGlassRateInrPerKg;
+  const glassCostInr = glassOnlyWeightKg * activeGlassRateInrPerKg;
+  const polymerMeshCostInr = polymerMeshWeightKg * activePolymerMeshRateInrPerKg;
+  const printedClothCostInr = printedClothWeightKg * activePrintedClothRateInrPerKg;
   const fillerCostInr = fillerWeightKg * activeFillerRateInrPerKg;
-  const mylarAreaM2 = (config.mylarWidthMm / 1000) * rawLengthM * 2; // top & bottom for raw sheet length
-  const mylarCostInr = mylarAreaM2 * 0.8 * usdToInrRate;
-  const catalystCostInr = (catalystVolumeMl / 1000) * activeCatalystRateInrPerLiter;
-  const laborEnergyCostInr = activeLaborRateInrPerSheet;
+  const catalystCostInr = catalystWeightKg * activeCatalystRateInrPerKg;
+  const cobaltCostInr = cobaltWeightKg * activeCobaltRateInrPerKg;
+  const pigmentCostInr = pigmentWeightKg * activePigmentRateInrPerKg;
+  const styreneCostInr = styreneMonomerWeightKg * activeStyreneRateInrPerKg;
+  const uvCostInr = uvStabilizerWeightKg * activeUvRateInrPerKg;
+  const bottomMylarCostInr = bottomMylarWeightKg * activeBottomMylarRateInrPerKg;
+  const topMylarCostInr = topMylarWeightKg * activeTopMylarRateInrPerKg;
+  const mylarCostInr = bottomMylarCostInr + topMylarCostInr;
+  const activeMylarRateInrPerKg =
+    totalMylarWeightKg > 0 ? Math.round(mylarCostInr / totalMylarWeightKg) : activeBottomMylarRateInrPerKg;
+  const laborEnergyCostInr = totalSheetWeightKg * activeLaborRateInrPerKg;
 
-  const baseCostInr = resinCostInr + glassCostInr + fillerCostInr + mylarCostInr + catalystCostInr + laborEnergyCostInr;
+  // Legacy equivalent values for backward compatibility
+  const activeCatalystRateInrPerLiter = Math.round(activeCatalystRateInrPerKg * 1.1);
+  const activeCobaltRateInrPerLiter = Math.round(activeCobaltRateInrPerKg * 0.96);
+  const activeMylarRateInrPerM2 = mylarTotalAreaM2 > 0 ? Math.round(mylarCostInr / mylarTotalAreaM2) : 30;
+  const activeLaborRateInrPerSheet = Math.round(totalSheetWeightKg * activeLaborRateInrPerKg);
+
+  const baseCostInr =
+    resinCostInr +
+    glassCostInr +
+    polymerMeshCostInr +
+    printedClothCostInr +
+    fillerCostInr +
+    catalystCostInr +
+    cobaltCostInr +
+    pigmentCostInr +
+    styreneCostInr +
+    uvCostInr +
+    mylarCostInr +
+    laborEnergyCostInr;
   const profitAmountInr = baseCostInr * (activeProfitMarginPercent / 100);
   const exFactoryCostInr = baseCostInr + profitAmountInr;
   const estimatedCostInr = exFactoryCostInr;
-  const estimatedCostUsd = estimatedCostInr / usdToInrRate;
 
   // Indian Rupee Unit Rates & GST
   const pricePerM2Inr = sheetAreaM2 > 0 ? estimatedCostInr / sheetAreaM2 : 0;
@@ -906,11 +1268,19 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     'IS 15061 (Class 1 Flame Spread Rating)'
   ];
 
-  // Mechanical properties: Resin type & filler additions modify modulus (rigidity)
-  let flexuralStiffnessGpa = 8.5 * activeResinSpec.stiffnessMultiplier; // base FRP with resin modifier
-  if (config.fiberType.includes('woven')) flexuralStiffnessGpa = 14.2 * activeResinSpec.stiffnessMultiplier;
-  if (config.fiberType.includes('multiaxial')) flexuralStiffnessGpa = 18.5 * activeResinSpec.stiffnessMultiplier;
-  if (config.glassLayers > 2) flexuralStiffnessGpa *= 1.35;
+  // Mechanical properties: Resin type, multi-ply schedule & filler additions modify modulus (rigidity)
+  let weightedBaseModulusGpa = 0;
+  for (const ply of plyScheduleBreakdown) {
+    let plyModulus = 8.5;
+    if (ply.fiberType.includes('woven')) plyModulus = 14.2;
+    else if (ply.fiberType.includes('multiaxial')) plyModulus = 18.5;
+    else if (ply.fiberType === 'polymer_mesh') plyModulus = 9.2;
+    else if (ply.fiberType === 'printed_cloth') plyModulus = 7.2;
+    else if (ply.fiberType === 'surface_veil_30') plyModulus = 6.5;
+    weightedBaseModulusGpa += plyModulus * (ply.gsm / Math.max(1, totalGlassGsm));
+  }
+  let flexuralStiffnessGpa = (weightedBaseModulusGpa || 8.5) * activeResinSpec.stiffnessMultiplier;
+  if (plyScheduleBreakdown.length > 2) flexuralStiffnessGpa *= 1.35;
   if (fillerPercent > 0) {
     const fillerStiffnessBoost = Math.min(0.25, (fillerPercent / 100) * 0.6); // up to +25% stiffness
     flexuralStiffnessGpa *= (1 + fillerStiffnessBoost);
@@ -937,7 +1307,10 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
 
   // UV Exposure Resistance & Surface Film/Gelcoat Protection
   let uvProtectionBonusYears = 3;
-  let uvProtectionType = "36µm UV-Stabilized Mylar Carrier Film";
+  const mylarLabelStr = mylarBottomThicknessUm !== mylarTopThicknessUm
+    ? `1st ${mylarBottomThicknessUm}µm + Top ${mylarTopThicknessUm}µm BOPET Mylar Film`
+    : `${mylarBottomThicknessUm}µm UV-Stabilized Mylar Carrier Film`;
+  let uvProtectionType = mylarLabelStr;
   let uvDegradationResistance = "Standard UV-2 Weather Grade (ISO 4892)";
 
   if (uvStabilizerType === 'synergistic_uva_hals') {
@@ -961,13 +1334,13 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     uvProtectionBonusYears += 3;
     uvProtectionType = "Isophthalic Neopentyl Glycol (NPG) Gelcoat + UV Absorber";
     uvDegradationResistance = "Extreme UV-5 Outdoor Weathering Class (4000 hr QUV Passed)";
-  } else if (config.mylarThicknessUm >= 50) {
+  } else if (maxMylarThicknessUm >= 50) {
     uvProtectionBonusYears += 2;
-    uvProtectionType = `${config.mylarThicknessUm}µm Heavy Duty Weather-Shield Mylar Film`;
+    uvProtectionType = `${mylarLabelStr} (Heavy Duty Weather-Shield)`;
     uvDegradationResistance = "High UV-4 Commercial Roof Grade";
-  } else if (config.mylarThicknessUm >= 30) {
+  } else if (maxMylarThicknessUm >= 30) {
     uvProtectionBonusYears += 1;
-    uvProtectionType = `${config.mylarThicknessUm}µm UV-Inhibited PET Film Coating`;
+    uvProtectionType = `${mylarLabelStr} (UV-Inhibited PET Coating)`;
     uvDegradationResistance = "Enhanced UV-3 Weather Resistance Class";
   }
 
@@ -979,10 +1352,17 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
 
   // Glass Fiber Reinforcement Structural Toughness
   let fiberReinforcementBonusYears = 0;
-  if (config.fiberType === 'woven_roving_600' || config.fiberType === 'multiaxial_800') {
+  const hasHighStrengthPly = plyScheduleBreakdown.some(
+    (p) => p.fiberType.includes('woven') || p.fiberType.includes('multiaxial')
+  );
+  const hasSurfaceVeil = plyScheduleBreakdown.some((p) => p.fiberType === 'surface_veil_30');
+  if (hasHighStrengthPly) {
     fiberReinforcementBonusYears = 3;
-  } else if (config.glassLayers >= 3) {
+  } else if (plyScheduleBreakdown.length >= 3) {
     fiberReinforcementBonusYears = 2;
+  }
+  if (hasSurfaceVeil) {
+    fiberReinforcementBonusYears += 2; // C-glass veil prevents fiber bloom & surface weathering
   }
 
   // Filler Effect
@@ -1046,9 +1426,25 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     totalResinWeightKg,
     totalSheetWeightKg,
     catalystVolumeMl,
+    catalystWeightGrams: parseFloat(catalystWeightGrams.toFixed(1)),
+    catalystWeightKg: parseFloat(catalystWeightKg.toFixed(3)),
     cobaltPercent,
     cobaltWeightGrams: parseFloat(cobaltWeightGrams.toFixed(1)),
+    cobaltWeightKg: parseFloat(cobaltWeightKg.toFixed(4)),
     cobaltVolumeMl: parseFloat(cobaltVolumeMl.toFixed(1)),
+    // Mylar Dual-Layer Specifications
+    mylarBottomThicknessUm,
+    mylarTopThicknessUm,
+    mylarSingleSideAreaM2: parseFloat(mylarSingleSideAreaM2.toFixed(2)),
+    mylarTotalAreaM2: parseFloat(mylarTotalAreaM2.toFixed(2)),
+    bottomMylarWeightGrams: parseFloat(bottomMylarWeightGrams.toFixed(1)),
+    bottomMylarWeightKg: parseFloat(bottomMylarWeightKg.toFixed(3)),
+    topMylarWeightGrams: parseFloat(topMylarWeightGrams.toFixed(1)),
+    topMylarWeightKg: parseFloat(topMylarWeightKg.toFixed(3)),
+    totalMylarWeightGrams: parseFloat(totalMylarWeightGrams.toFixed(1)),
+    totalMylarWeightKg: parseFloat(totalMylarWeightKg.toFixed(3)),
+    bottomMylarCostInr: Math.round(bottomMylarCostInr),
+    topMylarCostInr: Math.round(topMylarCostInr),
     ambientTempC,
     estimatedGelTimeMin,
     cobaltRecommendation,
@@ -1057,7 +1453,7 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     fillerPercent,
     fillerWeightKg: parseFloat(fillerWeightKg.toFixed(2)),
     fillerWeightGrams: parseFloat(fillerWeightGrams.toFixed(1)),
-    fillerCostUsdKg,
+    fillerCostInrKg,
     fillerEffectNote,
     // Styrene Reactive Diluent Monomer
     styreneDiluentPercent,
@@ -1079,22 +1475,55 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
     pigmentWeightKg: parseFloat(pigmentWeightKg.toFixed(3)),
     resinVolumeLiters,
     densityGcm3: parseFloat(densityGcm3.toFixed(2)),
-    estimatedCostUsd: parseFloat(estimatedCostUsd.toFixed(2)),
     estimatedCostInr: parseFloat(estimatedCostInr.toFixed(2)),
     pricePerM2Inr: Math.round(pricePerM2Inr),
     pricePerSqFtInr: parseFloat(pricePerSqFtInr.toFixed(1)),
     pricePerKgInr: Math.round(pricePerKgInr),
     gstAmountInr: Math.round(gstAmountInr),
     totalCostWithGstInr: Math.round(totalCostWithGstInr),
-    // Active Rate Details
+    // Active Rate Details (All in ₹/kg including Labor)
     activeResinRateInrPerKg,
     activeGlassRateInrPerKg,
+    activePolymerMeshRateInrPerKg,
+    activePrintedClothRateInrPerKg,
     activeFillerRateInrPerKg,
+    activeCatalystRateInrPerKg,
+    activeCobaltRateInrPerKg,
+    activePigmentRateInrPerKg,
+    activeStyreneRateInrPerKg,
+    activeUvRateInrPerKg,
+    activeMylarRateInrPerKg,
+    activeBottomMylarRateInrPerKg,
+    activeTopMylarRateInrPerKg,
+    activeLaborRateInrPerKg,
+    activeLaborTierId,
+    activeLaborTierLabel,
+    activeLaborRateUpTo1mmInrPerKg,
+    activeLaborRate1_1To1_5mmInrPerKg,
+    activeLaborRateAbove1_5mmInrPerKg,
+    polymerMeshWeightKg: parseFloat(polymerMeshWeightKg.toFixed(3)),
+    polymerMeshWeightGrams: parseFloat(polymerMeshWeightGrams.toFixed(1)),
+    printedClothWeightKg: parseFloat(printedClothWeightKg.toFixed(3)),
+    printedClothWeightGrams: parseFloat(printedClothWeightGrams.toFixed(1)),
     activeCatalystRateInrPerLiter,
+    activeCobaltRateInrPerLiter,
+    activeMylarRateInrPerM2,
     activeLaborRateInrPerSheet,
-    activeUsdToInrRate: usdToInrRate,
     activeGstPercent,
     activeProfitMarginPercent,
+    // Itemized Costs
+    resinCostInr: Math.round(resinCostInr),
+    glassCostInr: Math.round(glassCostInr),
+    polymerMeshCostInr: Math.round(polymerMeshCostInr),
+    printedClothCostInr: Math.round(printedClothCostInr),
+    fillerCostInr: Math.round(fillerCostInr),
+    catalystCostInr: Math.round(catalystCostInr),
+    cobaltCostInr: Math.round(cobaltCostInr),
+    pigmentCostInr: Math.round(pigmentCostInr),
+    styreneCostInr: Math.round(styreneCostInr),
+    uvCostInr: Math.round(uvCostInr),
+    mylarCostInr: Math.round(mylarCostInr),
+    laborEnergyCostInr: Math.round(laborEnergyCostInr),
     profitAmountInr: Math.round(profitAmountInr),
     exFactoryCostInr: Math.round(exFactoryCostInr),
     bisStandards,
@@ -1129,7 +1558,6 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
       typeKey: activeResinSpec.typeKey,
       name: activeResinSpec.name,
       baseTransmittance: activeResinSpec.baseTransmittance,
-      costPerKgUsd: activeResinSpec.costPerKgUsd,
       costPerKgInr: activeResinSpec.costPerKgInr,
       hdtC: activeResinSpec.hdtC,
       uvGrade: activeResinSpec.uvGrade,
@@ -1147,6 +1575,9 @@ export function calculateMaterials(config: FRPConfig): MaterialCalculations {
       typicalApplications: activeGlassSpec.typicalApplications,
       weaveStructure: activeGlassSpec.weaveStructure,
     },
+    plyScheduleBreakdown,
+    isHybridPlySchedule,
+    plySummaryText,
     structuralLoad: calculateStructuralLoadCapacity(config, flexuralStiffnessGpa),
   };
 }

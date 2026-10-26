@@ -38,7 +38,9 @@ const defaultConfig: FRPConfig = {
   glassLayers: 2,
   resinToGlassRatio: 0.65,
   mylarWidthMm: 1200,
-  mylarThicknessUm: 75,
+  mylarThicknessUm: 25,
+  mylarBottomThicknessUm: 25,
+  mylarTopThicknessUm: 100,
   mylarFinish: 'gloss',
   catalystPercent: 2.0,
   cobaltPercent: 0.2,
@@ -59,8 +61,76 @@ const defaultConfig: FRPConfig = {
   step6Method: 'manual_shear_trim',
 };
 
+const RAW_MATERIAL_RATES_STORAGE_KEY = 'ufrp_raw_material_rates_v1';
+
+interface SavedRawMaterialRates {
+  customResinRateInrPerKg?: number;
+  customGlassRateInrPerKg?: number;
+  customPolymerMeshRateInrPerKg?: number;
+  customPrintedClothRateInrPerKg?: number;
+  customFillerRateInrPerKg?: number;
+  customCatalystRateInrPerKg?: number;
+  customCobaltRateInrPerKg?: number;
+  customPigmentRateInrPerKg?: number;
+  customStyreneRateInrPerKg?: number;
+  customUvRateInrPerKg?: number;
+  customMylarRateInrPerKg?: number;
+  customBottomMylarRateInrPerKg?: number;
+  customTopMylarRateInrPerKg?: number;
+  customMylarRatesByMicron?: Record<number, number>;
+  customLaborRateUpTo1mmInrPerKg?: number;
+  customLaborRate1_1To1_5mmInrPerKg?: number;
+  customLaborRateAbove1_5mmInrPerKg?: number;
+  customGstPercent?: number;
+  customProfitMarginPercent?: number;
+}
+
+function loadSavedRates(): SavedRawMaterialRates {
+  try {
+    const raw = localStorage.getItem(RAW_MATERIAL_RATES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    // Omit legacy single customLaborRateInrPerKg so thickness-based labor tiers (₹30 / ₹23 / ₹17 per kg) work automatically
+    const { customLaborRateInrPerKg: _legacyLabor, ...rest } = parsed;
+    return rest;
+  } catch {
+    return {};
+  }
+}
+
+function extractRatesFromConfig(cfg: FRPConfig): SavedRawMaterialRates {
+  return {
+    customResinRateInrPerKg: cfg.customResinRateInrPerKg,
+    customGlassRateInrPerKg: cfg.customGlassRateInrPerKg,
+    customPolymerMeshRateInrPerKg: cfg.customPolymerMeshRateInrPerKg,
+    customPrintedClothRateInrPerKg: cfg.customPrintedClothRateInrPerKg,
+    customFillerRateInrPerKg: cfg.customFillerRateInrPerKg,
+    customCatalystRateInrPerKg: cfg.customCatalystRateInrPerKg,
+    customCobaltRateInrPerKg: cfg.customCobaltRateInrPerKg,
+    customPigmentRateInrPerKg: cfg.customPigmentRateInrPerKg,
+    customStyreneRateInrPerKg: cfg.customStyreneRateInrPerKg,
+    customUvRateInrPerKg: cfg.customUvRateInrPerKg,
+    customMylarRateInrPerKg: cfg.customMylarRateInrPerKg,
+    customBottomMylarRateInrPerKg: cfg.customBottomMylarRateInrPerKg,
+    customTopMylarRateInrPerKg: cfg.customTopMylarRateInrPerKg,
+    customMylarRatesByMicron: cfg.customMylarRatesByMicron,
+    customLaborRateUpTo1mmInrPerKg: cfg.customLaborRateUpTo1mmInrPerKg,
+    customLaborRate1_1To1_5mmInrPerKg: cfg.customLaborRate1_1To1_5mmInrPerKg,
+    customLaborRateAbove1_5mmInrPerKg: cfg.customLaborRateAbove1_5mmInrPerKg,
+    customGstPercent: cfg.customGstPercent,
+    customProfitMarginPercent: cfg.customProfitMarginPercent,
+  };
+}
+
 export default function App() {
-  const [config, setConfig] = useState<FRPConfig>(() => parseConfigFromUrl(defaultConfig));
+  const [config, setConfig] = useState<FRPConfig>(() => {
+    const savedRates = loadSavedRates();
+    return parseConfigFromUrl({
+      ...defaultConfig,
+      ...savedRates,
+    });
+  });
   const [currentStep, setCurrentStep] = useState<StepNumber>(1);
   const [activeSubStep, setActiveSubStep] = useState<number>(3);
   const [unrollProgress, setUnrollProgress] = useState<number>(0);
@@ -87,16 +157,49 @@ export default function App() {
   const [isRateModalOpen, setIsRateModalOpen] = useState<boolean>(false);
   const [isStructuralOpen, setIsStructuralOpen] = useState<boolean>(false);
 
+  // Persist raw material rates to localStorage whenever any rate changes
+  useEffect(() => {
+    try {
+      const ratesToSave = extractRatesFromConfig(config);
+      localStorage.setItem(RAW_MATERIAL_RATES_STORAGE_KEY, JSON.stringify(ratesToSave));
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [
+    config.customResinRateInrPerKg,
+    config.customGlassRateInrPerKg,
+    config.customPolymerMeshRateInrPerKg,
+    config.customPrintedClothRateInrPerKg,
+    config.customFillerRateInrPerKg,
+    config.customCatalystRateInrPerKg,
+    config.customCobaltRateInrPerKg,
+    config.customPigmentRateInrPerKg,
+    config.customStyreneRateInrPerKg,
+    config.customUvRateInrPerKg,
+    config.customMylarRateInrPerKg,
+    config.customBottomMylarRateInrPerKg,
+    config.customTopMylarRateInrPerKg,
+    config.customMylarRatesByMicron,
+    config.customLaborRateInrPerKg,
+    config.customLaborRateUpTo1mmInrPerKg,
+    config.customLaborRate1_1To1_5mmInrPerKg,
+    config.customLaborRateAbove1_5mmInrPerKg,
+    config.customGstPercent,
+    config.customProfitMarginPercent,
+  ]);
+
   // Derived calculations
   const tableSpec = calculateTables(config);
   const materials = calculateMaterials(config);
 
-  // Apply Presets
+  // Apply Presets while preserving saved raw material rates
   const handleApplyPreset = (presetName: string) => {
     soundFx.playClick();
+    const preservedRates = extractRatesFromConfig(config);
     if (presetName === 'roof_corrugated') {
       setConfig({
         ...defaultConfig,
+        ...preservedRates,
         lengthMm: 3600,
         widthMm: 1000,
         thicknessMm: 1.5,
@@ -108,6 +211,7 @@ export default function App() {
     } else if (presetName === 'trapezoidal_industrial') {
       setConfig({
         ...defaultConfig,
+        ...preservedRates,
         lengthMm: 6000,
         widthMm: 1000,
         thicknessMm: 2.0,
@@ -121,6 +225,7 @@ export default function App() {
     } else if (presetName === 'heavy_chemical') {
       setConfig({
         ...defaultConfig,
+        ...preservedRates,
         lengthMm: 7200,
         widthMm: 1200,
         thicknessMm: 3.0,
@@ -136,6 +241,7 @@ export default function App() {
     } else if (presetName === 'railway_canopy') {
       setConfig({
         ...defaultConfig,
+        ...preservedRates,
         lengthMm: 4800,
         widthMm: 1200,
         thicknessMm: 2.5,
@@ -149,10 +255,14 @@ export default function App() {
     }
   };
 
-  // Reset simulation
+  // Reset simulation while preserving saved raw material rates
   const handleReset = () => {
     soundFx.playClick();
-    setConfig(defaultConfig);
+    const preservedRates = extractRatesFromConfig(config);
+    setConfig({
+      ...defaultConfig,
+      ...preservedRates,
+    });
     setCurrentStep(1);
     setUnrollProgress(0);
     setCuringProgress(0);
@@ -518,7 +628,7 @@ export default function App() {
         onClose={() => setIsRateModalOpen(false)}
         config={config}
         materials={materials}
-        updateField={(field, val) => setConfig((prev) => ({ ...prev, [field]: val }))}
+        onChangeConfig={setConfig}
       />
 
       {/* WhatsApp Support Floating Bubble */}

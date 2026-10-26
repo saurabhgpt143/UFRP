@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FRPConfig, ProfileType } from '../types';
 import { calculateMaterials } from '../utils/frpCalculations';
 import { Layers, Ruler, Maximize2, ShieldAlert, Check, Info, Sparkles, Sliders } from 'lucide-react';
+import { EditableNumberInput } from './EditableNumberInput';
 
 interface SheetCrossProfileProps {
   config: FRPConfig;
@@ -477,13 +478,21 @@ export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
           {/* Interactive Draw Factor Selection */}
           {onChangeDrawFactor && (
             <div className="flex flex-col gap-2 pt-0.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-medium font-mono text-[11px] flex items-center gap-1">
-                  <span>Wave Draw Factor:</span>
-                  <span className="text-cyan-400 font-bold font-mono">
-                    {(config.corrugatedDrawFactor ?? (85.622 / 76)).toFixed(3)}×
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-300 font-medium font-mono text-[11px]">
+                    Wave Draw Factor:
                   </span>
-                </span>
+                  <EditableNumberInput
+                    value={Number((config.corrugatedDrawFactor ?? (85.622 / 76)).toFixed(3))}
+                    onChange={(val) => onChangeDrawFactor(val)}
+                    min={1.01}
+                    max={1.5}
+                    step={0.001}
+                    className="w-18 bg-slate-950 border border-cyan-500/40 rounded px-1.5 py-0.5 text-right text-xs text-cyan-300 font-mono font-bold focus:outline-none focus:border-cyan-400"
+                  />
+                  <span className="text-cyan-400 font-bold font-mono text-xs">×</span>
+                </div>
                 <span className="text-[10px] font-mono text-slate-400">
                   {Math.abs((config.corrugatedDrawFactor ?? (85.622 / 76)) - 1.125) < 0.002
                     ? '4.5 ft (54") Initial Flat per 4 ft Finished'
@@ -491,7 +500,7 @@ export const SheetCrossProfile: React.FC<SheetCrossProfileProps> = ({
                     ? '4.58 ft (55") Initial Flat per 4 ft Finished'
                     : Math.abs((config.corrugatedDrawFactor ?? (85.622 / 76)) - (85.622 / 76)) < 0.002
                     ? 'IS 12866 76/18 Arc Exact (85.62mm/76mm)'
-                    : '1.12–1.15 Custom Wave Draw Factor'}
+                    : 'Custom Wave Draw Factor'}
                 </span>
               </div>
 

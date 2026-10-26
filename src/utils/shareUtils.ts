@@ -224,8 +224,8 @@ export function generateProductSpecCardCanvas(
     ctx.fillText(`₹${Math.round(materials.estimatedCostInr).toLocaleString('en-IN')} INR`, rightX + 16, priceY + 54);
 
     ctx.fillStyle = '#10b981';
-    ctx.font = 'bold 15px monospace';
-    ctx.fillText(`₹${materials.pricePerSqFtInr}/sq.ft • ₹${materials.pricePerM2Inr}/m²`, rightX + 240, priceY + 54);
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`₹${materials.pricePerKgInr}/kg • ₹${materials.pricePerSqFtInr}/sq.ft • ₹${materials.pricePerM2Inr}/m²`, rightX + 215, priceY + 54);
 
     // Footer Branding / URL
     ctx.fillStyle = '#f59e0b';
@@ -259,10 +259,11 @@ Glass Roving    : IS 11273:1992 Structural Fiber
 Wind Resistance : IS 875 (Part 3) Up to 55 m/s Coastal Wind Zone
 Flame Spread    : IS 15061 Class 1 Rating
 
-MATERIAL SPECIFICATIONS:
+MATERIAL SPECIFICATIONS & ₹/KG RATES:
 ------------------------------------------------
-Resin Matrix    : ${(config.resinType || 'orthophthalic').toUpperCase()} Polymer
-Reinforcement   : ${config.fiberType.toUpperCase()} (${config.glassLayers} Layers)
+Resin Matrix    : ${(config.resinType || 'orthophthalic').toUpperCase()} Polymer (@ ₹${materials.activeResinRateInrPerKg}/kg)
+Reinforcement   : ${materials.plySummaryText || config.fiberType.toUpperCase()} (@ ₹${materials.activeGlassRateInrPerKg}/kg)
+${materials.polymerMeshWeightKg > 0 ? `Polymer Mesh    : ${materials.polymerMeshWeightKg.toFixed(2)} kg (@ ₹${materials.activePolymerMeshRateInrPerKg}/kg)\n` : ''}${materials.printedClothWeightKg > 0 ? `Printed Clothes : ${materials.printedClothWeightKg.toFixed(2)} kg (@ ₹${materials.activePrintedClothRateInrPerKg}/kg)\n` : ''}Mylar Film      : 1st ${materials.mylarBottomThicknessUm}µm (@ ₹${materials.activeBottomMylarRateInrPerKg}/kg) + Top ${materials.mylarTopThicknessUm}µm (@ ₹${materials.activeTopMylarRateInrPerKg}/kg)
 Glass Fiber Wt  : ${glassRatioPercent}% Glass Content
 Sheet Weight    : ${materials.totalSheetWeightKg.toFixed(2)} kg per panel
 Density         : ${materials.densityGcm3.toFixed(2)} g/cm³
@@ -275,10 +276,11 @@ Chemical Guard    : ${materials.resinTypeSpec.chemicalResistance}
 
 ESTIMATED INDIAN MARKET PRICING & GST (HSN 3920):
 ------------------------------------------------
-Ex-Factory Price : ₹${Math.round(materials.estimatedCostInr).toLocaleString('en-IN')} INR ($${materials.estimatedCostUsd.toFixed(2)} USD)
+Ex-Factory Price : ₹${Math.round(materials.estimatedCostInr).toLocaleString('en-IN')} INR
+Rate per Kg Mass : ₹${materials.pricePerKgInr} / kg
 Rate per Sq. Feet: ₹${materials.pricePerSqFtInr} / sq.ft
 Rate per Sq. Meter: ₹${materials.pricePerM2Inr} / m²
-Rate per Kg Weight: ₹${materials.pricePerKgInr} / kg
+Install Labor    : ₹${materials.activeLaborRateInrPerKg} / kg (${materials.activeLaborTierLabel})
 18% GST Amount   : ₹${materials.gstAmountInr.toLocaleString('en-IN')} INR
 Total Incl. GST  : ₹${materials.totalCostWithGstInr.toLocaleString('en-IN')} INR
 

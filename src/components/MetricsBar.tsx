@@ -170,6 +170,7 @@ export const MetricsBar: React.FC<MetricsBarProps> = ({
           </div>
           <div className="font-bold text-teal-300 font-mono mt-0.5 text-[11px] sm:text-xs whitespace-nowrap flex items-center gap-1.5">
             <span>₹{Math.round(materials.estimatedCostInr).toLocaleString('en-IN')}</span>
+            <span className="text-blue-300 bg-blue-950 px-1 py-0.2 rounded border border-blue-500/30 text-[10px]">₹{materials.pricePerKgInr}/kg</span>
             <span className="text-amber-300 bg-amber-950 px-1 py-0.2 rounded border border-amber-500/30 text-[10px]">₹{materials.pricePerSqFtInr}/ft²</span>
           </div>
         </div>

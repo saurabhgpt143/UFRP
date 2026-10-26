@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { SheetCrossProfile, ProfileSpecs } from './SheetCrossProfile';
 import { StepAlternativeSelector } from './StepAlternativeSelector';
-import { calculateMaterials, RESIN_SPECS, GLASS_FIBER_SPECS } from '../utils/frpCalculations';
+import { EditableNumberInput } from './EditableNumberInput';
+import { PlyStackBuilder } from './PlyStackBuilder';
+import {
+  calculateMaterials,
+  RESIN_SPECS,
+  GLASS_FIBER_SPECS,
+  resolvePlySchedule,
+  applyMylarMicronChange,
+  applyMylarRateChange,
+  getMylarRateForMicron,
+} from '../utils/frpCalculations';
 import {
   FRPConfig,
   MaterialCalculations,
@@ -116,12 +126,40 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
       [key]: value,
     };
 
-    // When changing fiberglass type, automatically adjust resin-to-glass ratio to match the recommended standard for that specific fiberglass
+    // When changing fiberglass type, automatically adjust resin-to-glass ratio and set uniform ply schedule
     if (key === 'fiberType') {
-      const fiberSpec = GLASS_FIBER_SPECS[value as GlassFiberType];
+      const fType = value as GlassFiberType;
+      const fiberSpec = GLASS_FIBER_SPECS[fType];
       if (fiberSpec) {
         newConfig.resinToGlassRatio = fiberSpec.recommendedResinRatio;
+        newConfig.plySchedule = Array.from({ length: Math.max(1, newConfig.glassLayers) }, (_, idx) => ({
+          id: `ply-${idx + 1}`,
+          fiberType: fType,
+          customGsm: fiberSpec.gsmPerLayer,
+        }));
       }
+    }
+
+    // When changing glassLayers count, resize plySchedule while preserving existing custom plies
+    if (key === 'glassLayers') {
+      const targetCount = Math.max(1, Number(value));
+      const existingPlies = resolvePlySchedule(config);
+      const resizedPlies = Array.from({ length: targetCount }, (_, idx) => {
+        if (idx < existingPlies.length) {
+          return {
+            id: existingPlies[idx].id || `ply-${idx + 1}`,
+            fiberType: existingPlies[idx].fiberType,
+            customGsm: existingPlies[idx].gsm,
+          };
+        }
+        const defaultSpec = GLASS_FIBER_SPECS[newConfig.fiberType] || GLASS_FIBER_SPECS['csm_450'];
+        return {
+          id: `ply-${idx + 1}`,
+          fiberType: newConfig.fiberType,
+          customGsm: defaultSpec.gsmPerLayer,
+        };
+      });
+      newConfig.plySchedule = resizedPlies;
     }
 
     // When selecting cross-profile, automatically retrieve the profile's standard final sheet width
@@ -174,14 +212,13 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span className="text-[10px] text-slate-500 font-mono">(mm)</span>
               </label>
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                <input
+                <EditableNumberInput
                   id="sheet-length-input"
-                  type="number"
-                  min="500"
-                  max="20000"
-                  step="100"
+                  min={100}
+                  max={30000}
+                  step={100}
                   value={config.lengthMm}
-                  onChange={(e) => updateField('lengthMm', Math.max(100, Number(e.target.value)))}
+                  onChange={(val) => updateField('lengthMm', val)}
                   className="w-20 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
                 />
                 <span className="text-slate-400 font-mono text-xs">mm</span>
@@ -193,7 +230,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
               min="1800"
               max="10800"
               step="300"
-              value={config.lengthMm}
+              value={Math.min(10800, Math.max(1800, config.lengthMm))}
               onChange={(e) => updateField('lengthMm', Number(e.target.value))}
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
@@ -232,14 +269,13 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span className="text-[10px] text-slate-500 font-mono">(mm)</span>
               </label>
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-                <input
+                <EditableNumberInput
                   id="sheet-width-input"
-                  type="number"
-                  min="100"
-                  max="3000"
-                  step="10"
+                  min={50}
+                  max={5000}
+                  step={10}
                   value={config.widthMm}
-                  onChange={(e) => updateField('widthMm', Math.max(50, Number(e.target.value)))}
+                  onChange={(val) => updateField('widthMm', val)}
                   className="w-20 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
                 />
                 <span className="text-slate-400 font-mono text-xs">mm</span>
@@ -277,14 +313,13 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span className="text-[10px] text-slate-500 font-mono">(mm)</span>
               </label>
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500">
-                <input
+                <EditableNumberInput
                   id="edge-margin-input"
-                  type="number"
-                  min="0"
-                  max="200"
-                  step="5"
+                  min={0}
+                  max={500}
+                  step={5}
                   value={config.edgeMarginMm ?? 50}
-                  onChange={(e) => updateField('edgeMarginMm', Math.max(0, Number(e.target.value)))}
+                  onChange={(val) => updateField('edgeMarginMm', val)}
                   className="w-16 bg-transparent text-right font-mono font-bold text-amber-400 focus:outline-none text-xs"
                 />
                 <span className="text-slate-400 font-mono text-xs">mm</span>
@@ -314,14 +349,13 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span className="text-[10px] text-slate-500 font-mono">(mm)</span>
               </label>
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
-                <input
+                <EditableNumberInput
                   id="length-margin-input"
-                  type="number"
-                  min="0"
-                  max="200"
-                  step="5"
+                  min={0}
+                  max={500}
+                  step={5}
                   value={config.lengthMarginMm ?? 50}
-                  onChange={(e) => updateField('lengthMarginMm', Math.max(0, Number(e.target.value)))}
+                  onChange={(val) => updateField('lengthMarginMm', val)}
                   className="w-16 bg-transparent text-right font-mono font-bold text-emerald-400 focus:outline-none text-xs"
                 />
                 <span className="text-slate-400 font-mono text-xs">mm</span>
@@ -369,26 +403,37 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <span>Sheet Thickness</span>
                 <span className="text-[10px] text-slate-500 font-mono">(mm)</span>
               </label>
-              <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
-                <input
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 focus-within:border-blue-500">
+                <EditableNumberInput
                   id="sheet-thickness-input"
-                  type="number"
-                  min="0.5"
-                  max="25"
-                  step="0.1"
+                  min={0.1}
+                  max={50}
+                  step={0.1}
                   value={config.thicknessMm}
-                  onChange={(e) => updateField('thicknessMm', Math.max(0.1, Number(e.target.value)))}
+                  onChange={(val) =>
+                    onChangeConfig({
+                      ...config,
+                      thicknessMm: val,
+                      laborRateTierOverride: 'auto',
+                    })
+                  }
                   className="w-16 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
                 />
                 <span className="text-slate-400 font-mono text-xs">mm</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5 mt-1">
-              {[1.2, 1.5, 2.0, 3.0, 5.0].map((t) => (
+            <div className="grid grid-cols-7 gap-1 mt-1">
+              {[0.8, 1.0, 1.2, 1.5, 2.0, 3.0, 5.0].map((t) => (
                 <button
                   key={t}
-                  onClick={() => updateField('thicknessMm', t)}
+                  onClick={() =>
+                    onChangeConfig({
+                      ...config,
+                      thicknessMm: t,
+                      laborRateTierOverride: 'auto',
+                    })
+                  }
                   className={`py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all ${
                     config.thicknessMm === t
                       ? 'bg-blue-600 border-blue-400 text-white'
@@ -399,7 +444,25 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </button>
               ))}
             </div>
+
+            {/* Active Thickness Labor Rate Tier Indicator */}
+            <div className="mt-1 bg-rose-950/30 border border-rose-500/30 px-2.5 py-1.5 rounded-lg flex items-center justify-between text-[10px] font-mono">
+              <span className="text-slate-300">
+                Installation Labor Rate Slab:
+              </span>
+              <strong className="text-rose-300">
+                {materials.activeLaborTierLabel} (₹{materials.laborEnergyCostInr})
+              </strong>
+            </div>
           </div>
+
+          {/* Multi-Ply Laminate Stack Builder (Add Different Ply per Layer) */}
+          <PlyStackBuilder
+            config={config}
+            materials={materials}
+            onChangeConfig={onChangeConfig}
+            compact={true}
+          />
 
           {/* Profile Selector */}
           <SheetCrossProfile
@@ -625,13 +688,21 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </span>
               </div>
 
-              {/* Custom Base Transmittance Limit Slider */}
+              {/* Custom Base Transmittance Limit Slider + Editable Input */}
               <div className="flex flex-col gap-1">
-                <div className="flex justify-between text-xs font-mono">
+                <div className="flex justify-between items-center text-xs font-mono">
                   <span className="text-slate-400">Base Translucency Level (Max Pass %):</span>
-                  <strong className="text-blue-300 font-bold">
-                    {config.customBaseTransmittance ?? (config.color === 'crystal_transparent' ? 95 : config.color === 'opal_white' ? 65 : config.color === 'carbon_black' ? 10 : 88)}%
-                  </strong>
+                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 focus-within:border-blue-500">
+                    <EditableNumberInput
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={config.customBaseTransmittance ?? (config.color === 'crystal_transparent' ? 95 : config.color === 'opal_white' ? 65 : config.color === 'carbon_black' ? 10 : 88)}
+                      onChange={(val) => updateField('customBaseTransmittance', val)}
+                      className="w-12 bg-transparent text-right font-mono font-bold text-blue-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 text-[10px]">%</span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -777,9 +848,28 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
 
             {/* Control 1: Desired Level of Transparency */}
             <div className="flex flex-col gap-1">
-              <div className="flex justify-between text-xs font-mono">
+              <div className="flex justify-between items-center text-xs font-mono">
                 <span className="text-slate-300">Desired Level of Transparency:</span>
-                <strong className="text-cyan-300 font-bold">{materials.lightTransmittancePercent}% Transmittance</strong>
+                <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 focus-within:border-cyan-500">
+                  <EditableNumberInput
+                    min={0}
+                    max={95}
+                    step={1}
+                    value={materials.lightTransmittancePercent}
+                    onChange={(desiredTrans) => {
+                      let baseMax = 90;
+                      if (config.color === 'crystal_transparent') baseMax = 95;
+                      if (config.color === 'opal_white') baseMax = 65;
+                      if (config.color === 'carbon_black') baseMax = 10;
+                      const thicknessFactor = Math.pow(0.92, Math.max(0, config.thicknessMm - 1));
+                      const targetRatio = Math.max(0.01, desiredTrans / (baseMax * thicknessFactor));
+                      const reqPigment = Math.max(0, Math.min(5.0, Number((-Math.log(Math.min(1.0, targetRatio)) / 0.85).toFixed(1))));
+                      updateField('pigmentPercent', reqPigment);
+                    }}
+                    className="w-12 bg-transparent text-right font-mono font-bold text-cyan-300 focus:outline-none text-xs"
+                  />
+                  <span className="text-slate-400 text-[10px]">%</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -809,16 +899,29 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
 
             {/* Control 2: Pigment Concentration Slider */}
             <div className="flex flex-col gap-1 pt-2 border-t border-slate-900">
-              <div className="flex justify-between text-xs font-mono">
+              <div className="flex justify-between items-center text-xs font-mono">
                 <span className="text-slate-300">Pigment Paste Concentration:</span>
-                <strong className="text-amber-300 font-bold">{materials.pigmentPercent.toFixed(1)}% ({materials.pigmentWeightGrams.toFixed(1)} g)</strong>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 focus-within:border-amber-500">
+                    <EditableNumberInput
+                      min={0}
+                      max={10}
+                      step={0.1}
+                      value={materials.pigmentPercent}
+                      onChange={(val) => updateField('pigmentPercent', val)}
+                      className="w-12 bg-transparent text-right font-mono font-bold text-amber-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 text-[10px]">%</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">({materials.pigmentWeightGrams.toFixed(1)} g)</span>
+                </div>
               </div>
               <input
                 type="range"
                 min="0.0"
                 max="5.0"
                 step="0.1"
-                value={materials.pigmentPercent}
+                value={Math.min(5.0, materials.pigmentPercent)}
                 onChange={(e) => updateField('pigmentPercent', Number(e.target.value))}
                 className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
@@ -852,6 +955,392 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
             </div>
           </div>
 
+          {/* Dual-Layer Mylar Carrier Film Selector (First/Bottom Layer vs Top Layer) */}
+          <div className="bg-slate-950 p-3 rounded-xl border border-blue-500/30 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Scroll className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[11px] font-mono font-bold uppercase text-blue-300">
+                  Mylar Paper Layers (1st Bottom &amp; Top Micron)
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-cyan-300 bg-blue-950/70 px-2 py-0.5 rounded border border-blue-500/30">
+                {materials.totalMylarWeightGrams.toFixed(0)}g ({materials.totalMylarWeightKg.toFixed(3)} kg) • ₹{materials.mylarCostInr}
+              </span>
+            </div>
+
+            {/* Quick Dual-Layer Presets */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px] font-mono">
+              {[
+                { b: 25, t: 100, label: '1st 25µm + Top 100µm' },
+                { b: 36, t: 75, label: '1st 36µm + Top 75µm' },
+                { b: 50, t: 50, label: 'Both 50µm + 50µm' },
+                { b: 75, t: 75, label: 'Both 75µm + 75µm' },
+              ].map((preset) => {
+                const isMatched =
+                  materials.mylarBottomThicknessUm === preset.b &&
+                  materials.mylarTopThicknessUm === preset.t;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      soundFx.playClick();
+                      onChangeConfig(applyMylarMicronChange(config, preset.b, preset.t));
+                    }}
+                    className={`py-1.5 px-1.5 rounded-lg border font-bold transition-all cursor-pointer ${
+                      isMatched
+                        ? 'bg-blue-600/30 border-blue-400 text-white shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Independent Bottom (1st) and Top (2nd) Layer Inputs + Auto-Fetched Micron Rates */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-cyan-500/30 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-cyan-300 font-semibold text-[10px]">1st (Bottom) Layer:</span>
+                  <div className="flex items-center gap-0.5">
+                    <EditableNumberInput
+                      value={materials.mylarBottomThicknessUm}
+                      min={10}
+                      max={500}
+                      step={5}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarMicronChange(config, val, undefined))
+                      }
+                      className="w-12 bg-slate-950 border border-slate-700 focus:border-cyan-500 rounded px-1 py-0.5 text-right font-bold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 text-[10px]">µm</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {[19, 25, 36, 50, 75, 100, 125].map((um) => (
+                    <button
+                      key={um}
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onChangeConfig(applyMylarMicronChange(config, um, undefined));
+                      }}
+                      title={`${um}µm (Auto-fetch ₹${getMylarRateForMicron(um, config)}/kg)`}
+                      className={`py-0.5 rounded text-[9px] font-bold border transition-all cursor-pointer ${
+                        materials.mylarBottomThicknessUm === um
+                          ? 'bg-cyan-600 border-cyan-400 text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {um}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                  <span className="text-[10px] text-slate-400">
+                    {materials.mylarBottomThicknessUm}µm Rate (Auto):
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[10px] text-cyan-300">₹</span>
+                    <EditableNumberInput
+                      value={materials.activeBottomMylarRateInrPerKg}
+                      min={0}
+                      max={10000}
+                      step={5}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarRateChange(config, 'bottom', val))
+                      }
+                      className="w-14 bg-slate-950 border border-cyan-500/40 focus:border-cyan-400 rounded px-1.5 py-0.5 text-right font-bold text-cyan-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-[9px] text-slate-500">/kg</span>
+                  </div>
+                </div>
+                <span className="text-[9px] text-slate-500">
+                  Wt: {materials.bottomMylarWeightGrams.toFixed(0)}g ({materials.bottomMylarWeightKg.toFixed(3)}kg) = <strong className="text-cyan-300">₹{materials.bottomMylarCostInr}</strong>
+                </span>
+              </div>
+
+              <div className="bg-slate-900 p-2.5 rounded-lg border border-amber-500/30 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-amber-300 font-semibold text-[10px]">Top (2nd) Layer:</span>
+                  <div className="flex items-center gap-0.5">
+                    <EditableNumberInput
+                      value={materials.mylarTopThicknessUm}
+                      min={10}
+                      max={500}
+                      step={5}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarMicronChange(config, undefined, val))
+                      }
+                      className="w-12 bg-slate-950 border border-slate-700 focus:border-amber-500 rounded px-1 py-0.5 text-right font-bold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 text-[10px]">µm</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {[19, 25, 36, 50, 75, 100, 125].map((um) => (
+                    <button
+                      key={um}
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onChangeConfig(applyMylarMicronChange(config, undefined, um));
+                      }}
+                      title={`${um}µm (Auto-fetch ₹${getMylarRateForMicron(um, config)}/kg)`}
+                      className={`py-0.5 rounded text-[9px] font-bold border transition-all cursor-pointer ${
+                        materials.mylarTopThicknessUm === um
+                          ? 'bg-amber-600 border-amber-400 text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {um}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                  <span className="text-[10px] text-slate-400">
+                    {materials.mylarTopThicknessUm}µm Rate (Auto):
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[10px] text-amber-300">₹</span>
+                    <EditableNumberInput
+                      value={materials.activeTopMylarRateInrPerKg}
+                      min={0}
+                      max={10000}
+                      step={5}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarRateChange(config, 'top', val))
+                      }
+                      className="w-14 bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded px-1.5 py-0.5 text-right font-bold text-amber-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-[9px] text-slate-500">/kg</span>
+                  </div>
+                </div>
+                <span className="text-[9px] text-slate-500">
+                  Wt: {materials.topMylarWeightGrams.toFixed(0)}g ({materials.topMylarWeightKg.toFixed(3)}kg) = <strong className="text-amber-300">₹{materials.topMylarCostInr}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Inline Raw Material & Labor Rates Quick Editor (All in ₹/kg • Auto-Remembered) */}
+          <div className="bg-slate-950 p-3 rounded-xl border border-teal-500/30 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div className="flex items-center gap-1.5">
+                <IndianRupee className="w-3.5 h-3.5 text-teal-400" />
+                <span className="text-[11px] font-mono font-bold uppercase text-teal-300">
+                  Raw Material &amp; Labor Rates (All ₹/kg • Auto-Saved)
+                </span>
+              </div>
+              {onOpenRateModal && (
+                <button
+                  type="button"
+                  onClick={onOpenRateModal}
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 cursor-pointer"
+                >
+                  Full ₹/kg Editor →
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] font-mono">
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                <span className="text-slate-400">Resin (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeResinRateInrPerKg}
+                  min={1}
+                  max={10000}
+                  step={1}
+                  onChange={(val) => updateField('customResinRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-0.5 text-right font-bold text-indigo-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                <span className="text-slate-400">Glass (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeGlassRateInrPerKg}
+                  min={1}
+                  max={10000}
+                  step={1}
+                  onChange={(val) => updateField('customGlassRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-0.5 text-right font-bold text-emerald-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-teal-500/30 flex items-center justify-between">
+                <span className="text-teal-300">Poly Mesh (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activePolymerMeshRateInrPerKg}
+                  min={0}
+                  max={15000}
+                  step={5}
+                  onChange={(val) => updateField('customPolymerMeshRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-teal-500/40 focus:border-teal-400 rounded px-1.5 py-0.5 text-right font-bold text-teal-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-pink-500/30 flex items-center justify-between">
+                <span className="text-pink-300">Printed Cloth (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activePrintedClothRateInrPerKg}
+                  min={0}
+                  max={20000}
+                  step={10}
+                  onChange={(val) => updateField('customPrintedClothRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-pink-500/40 focus:border-pink-400 rounded px-1.5 py-0.5 text-right font-bold text-pink-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-cyan-500/30 flex items-center justify-between">
+                <span className="text-cyan-300">{materials.mylarBottomThicknessUm}µm Mylar (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeBottomMylarRateInrPerKg}
+                  min={0}
+                  max={10000}
+                  step={5}
+                  onChange={(val) =>
+                    onChangeConfig(applyMylarRateChange(config, 'bottom', val))
+                  }
+                  className="w-14 bg-slate-950 border border-cyan-500/40 focus:border-cyan-400 rounded px-1.5 py-0.5 text-right font-bold text-cyan-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-amber-500/30 flex items-center justify-between">
+                <span className="text-amber-300">{materials.mylarTopThicknessUm}µm Mylar (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeTopMylarRateInrPerKg}
+                  min={0}
+                  max={10000}
+                  step={5}
+                  onChange={(val) =>
+                    onChangeConfig(applyMylarRateChange(config, 'top', val))
+                  }
+                  className="w-14 bg-slate-950 border border-amber-500/40 focus:border-amber-400 rounded px-1.5 py-0.5 text-right font-bold text-amber-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                <span className="text-slate-400">MEKP (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeCatalystRateInrPerKg}
+                  min={1}
+                  max={20000}
+                  step={5}
+                  onChange={(val) => updateField('customCatalystRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-0.5 text-right font-bold text-amber-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                <span className="text-slate-400">Filler (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeFillerRateInrPerKg}
+                  min={0}
+                  max={5000}
+                  step={1}
+                  onChange={(val) => updateField('customFillerRateInrPerKg', val)}
+                  className="w-14 bg-slate-950 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-0.5 text-right font-bold text-cyan-300 focus:outline-none"
+                />
+              </div>
+              <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+                <span className="text-slate-400">Labor (₹/kg):</span>
+                <EditableNumberInput
+                  value={materials.activeLaborRateInrPerKg}
+                  min={0}
+                  max={10000}
+                  step={1}
+                  onChange={(val) => {
+                    if (materials.activeLaborTierId === 'up_to_1mm') {
+                      onChangeConfig({
+                        ...config,
+                        customLaborRateInrPerKg: undefined,
+                        customLaborRateUpTo1mmInrPerKg: val,
+                      });
+                    } else if (materials.activeLaborTierId === '1_1_to_1_5mm') {
+                      onChangeConfig({
+                        ...config,
+                        customLaborRateInrPerKg: undefined,
+                        customLaborRate1_1To1_5mmInrPerKg: val,
+                      });
+                    } else {
+                      onChangeConfig({
+                        ...config,
+                        customLaborRateInrPerKg: undefined,
+                        customLaborRateAbove1_5mmInrPerKg: val,
+                      });
+                    }
+                  }}
+                  className="w-14 bg-slate-950 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-0.5 text-right font-bold text-rose-300 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Thickness-Based FRP Sheet Installation Labor Rate Tiers */}
+            <div className="bg-slate-900/80 p-2 rounded-lg border border-rose-500/20 flex flex-col gap-1.5 text-[10px] font-mono">
+              <div className="flex items-center justify-between text-slate-400">
+                <span>FRP Sheet Installation Labor Tiers (by Thickness):</span>
+                <span className="text-rose-300 font-bold">{materials.activeLaborTierLabel}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  {
+                    id: 'up_to_1mm' as const,
+                    label: 'Up to 1 mm',
+                    rate: materials.activeLaborRateUpTo1mmInrPerKg,
+                    field: 'customLaborRateUpTo1mmInrPerKg' as const,
+                  },
+                  {
+                    id: '1_1_to_1_5mm' as const,
+                    label: '1.1 to 1.5 mm',
+                    rate: materials.activeLaborRate1_1To1_5mmInrPerKg,
+                    field: 'customLaborRate1_1To1_5mmInrPerKg' as const,
+                  },
+                  {
+                    id: '1_5mm_and_above' as const,
+                    label: '1.5 mm & above',
+                    rate: materials.activeLaborRateAbove1_5mmInrPerKg,
+                    field: 'customLaborRateAbove1_5mmInrPerKg' as const,
+                  },
+                ].map((tier) => {
+                  const isActive = materials.activeLaborTierId === tier.id;
+                  return (
+                    <div
+                      key={tier.id}
+                      onClick={() =>
+                        onChangeConfig({
+                          ...config,
+                          customLaborRateInrPerKg: undefined,
+                          laborRateTierOverride: tier.id,
+                        })
+                      }
+                      className={`p-1.5 rounded border transition-all cursor-pointer flex flex-col gap-1 ${
+                        isActive
+                          ? 'bg-rose-950/70 border-rose-500 text-white shadow-sm'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold truncate">{tier.label}</span>
+                      <div className="flex items-center justify-between gap-0.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[9px] text-rose-300">₹</span>
+                        <EditableNumberInput
+                          value={tier.rate}
+                          min={0}
+                          max={5000}
+                          step={1}
+                          onChange={(val) =>
+                            onChangeConfig({
+                              ...config,
+                              customLaborRateInrPerKg: undefined,
+                              [tier.field]: val,
+                            })
+                          }
+                          className="w-11 bg-slate-900 border border-slate-700 focus:border-rose-400 rounded px-1 py-0.5 text-right font-bold text-white text-[10px] focus:outline-none"
+                        />
+                        <span className="text-[9px] text-slate-500">/kg</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           <button
             onClick={() => {
               soundFx.playClick();
@@ -873,7 +1362,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
         <div className="flex flex-col gap-4">
           <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed flex flex-col gap-1.5">
             <span>
-              Select high-clarity BOPET Mylar release paper for the base carrier bed. Following the table setup, only the bottom Mylar paper is to be unrolled onto the table.
+              Select high-clarity BOPET Mylar release paper for the base carrier bed and top sealing film. You can independently configure different thicknesses for the <strong>1st (Bottom) Layer</strong> (e.g. 25 Micron) and <strong>Top Layer</strong> (e.g. 100 Micron).
             </span>
             <div className="bg-blue-950/60 border border-blue-500/30 p-2 rounded-lg flex items-center justify-between text-xs font-mono">
               <span className="text-slate-400">Determined Flat Raw Width (incl. +{materials.edgeMarginMm}mm margin):</span>
@@ -904,12 +1393,25 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-slate-300">Mylar Film Roll Width (mm):</label>
-              <button
-                onClick={() => updateField('mylarWidthMm', materials.flatWidthMm)}
-                className="text-[10px] font-mono text-blue-400 hover:text-blue-300 underline"
-              >
-                Sync with Flat Width ({materials.flatWidthMm}mm)
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => updateField('mylarWidthMm', materials.flatWidthMm)}
+                  className="text-[10px] font-mono text-blue-400 hover:text-blue-300 underline"
+                >
+                  Sync ({materials.flatWidthMm}mm)
+                </button>
+                <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-blue-500">
+                  <EditableNumberInput
+                    min={100}
+                    max={6000}
+                    step={10}
+                    value={config.mylarWidthMm}
+                    onChange={(val) => updateField('mylarWidthMm', val)}
+                    className="w-16 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
+                  />
+                  <span className="text-slate-400 font-mono text-[10px]">mm</span>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
@@ -935,23 +1437,184 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
             </div>
           </div>
 
-          {/* Mylar Film Thickness */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-slate-300">Film Gauge Thickness (µm):</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[50, 75, 100].map((th) => (
-                <button
-                  key={th}
-                  onClick={() => updateField('mylarThicknessUm', th as MylarThickness)}
-                  className={`py-2 rounded-lg text-xs font-mono font-semibold border transition-all ${
-                    config.mylarThicknessUm === th
-                      ? 'bg-blue-600 border-blue-400 text-white'
-                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {th} µm
-                </button>
-              ))}
+          {/* Dual-Layer Mylar Film Thickness Selector (1st Bottom Layer & Top Layer) */}
+          <div className="bg-slate-950 p-3.5 rounded-xl border border-blue-500/30 flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span className="text-xs font-mono font-bold uppercase text-blue-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-blue-400" />
+                Dual-Layer Mylar Thickness &amp; Separate Rates
+              </span>
+              <span className="text-[10px] font-mono text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/30">
+                Total: {materials.totalMylarWeightKg.toFixed(3)} kg (₹{materials.mylarCostInr})
+              </span>
+            </div>
+
+            {/* Quick Dual-Layer Presets */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono text-slate-400">Quick Layer Combination Presets (Auto-Fetches Micron Rate):</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[10px] font-mono">
+                {[
+                  { b: 25, t: 100, label: '1st 25µm + Top 100µm' },
+                  { b: 100, t: 25, label: '1st 100µm + Top 25µm' },
+                  { b: 36, t: 75, label: '1st 36µm + Top 75µm' },
+                  { b: 25, t: 25, label: 'Both 25µm + 25µm' },
+                  { b: 50, t: 50, label: 'Both 50µm + 50µm' },
+                  { b: 100, t: 100, label: 'Both 100µm + 100µm' },
+                ].map((preset) => {
+                  const isMatched =
+                    materials.mylarBottomThicknessUm === preset.b &&
+                    materials.mylarTopThicknessUm === preset.t;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onChangeConfig(applyMylarMicronChange(config, preset.b, preset.t));
+                      }}
+                      className={`py-1.5 px-2 rounded-lg border font-bold transition-all cursor-pointer ${
+                        isMatched
+                          ? 'bg-blue-600 border-blue-400 text-white shadow-sm'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 1. First (Bottom) Layer Mylar Thickness & Auto-Fetched Rate */}
+            <div className="bg-slate-900/90 p-2.5 rounded-lg border border-cyan-500/30 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-cyan-300 block">
+                    1st Layer: Bottom Base Mylar ({materials.mylarBottomThicknessUm} µm)
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Area: {materials.mylarSingleSideAreaM2} m² • Wt: {materials.bottomMylarWeightGrams.toFixed(1)} g ({materials.bottomMylarWeightKg.toFixed(3)} kg) = <strong className="text-white">₹{materials.bottomMylarCostInr}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 bg-slate-950 border border-cyan-500/40 rounded-lg px-2 py-1" title="1st (Bottom) Mylar Thickness in Microns">
+                    <EditableNumberInput
+                      min={10}
+                      max={500}
+                      step={5}
+                      value={materials.mylarBottomThicknessUm}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarMicronChange(config, val, undefined))
+                      }
+                      className="w-11 bg-transparent text-right font-mono font-bold text-cyan-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">µm</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-slate-950 border border-cyan-500/40 rounded-lg px-2 py-1" title="1st (Bottom) Mylar Rate in ₹/kg">
+                    <span className="text-cyan-300 font-mono text-[10px]">₹</span>
+                    <EditableNumberInput
+                      min={0}
+                      max={10000}
+                      step={5}
+                      value={materials.activeBottomMylarRateInrPerKg}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarRateChange(config, 'bottom', val))
+                      }
+                      className="w-12 bg-transparent text-right font-mono font-bold text-cyan-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">/kg</span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {[19, 25, 36, 50, 75, 100, 125].map((th) => {
+                  const rateForTh = getMylarRateForMicron(th, config);
+                  return (
+                    <button
+                      key={th}
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onChangeConfig(applyMylarMicronChange(config, th, undefined));
+                      }}
+                      className={`py-1 rounded text-[10px] font-mono font-bold border transition-all cursor-pointer flex flex-col items-center leading-tight ${
+                        materials.mylarBottomThicknessUm === th
+                          ? 'bg-cyan-600 border-cyan-400 text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>{th}µm</span>
+                      <span className="text-[8px] opacity-80">₹{rateForTh}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Top (Upper) Layer Mylar Thickness & Auto-Fetched Rate */}
+            <div className="bg-slate-900/90 p-2.5 rounded-lg border border-amber-500/30 flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-amber-300 block">
+                    2nd Layer: Top Sealing Mylar ({materials.mylarTopThicknessUm} µm)
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Area: {materials.mylarSingleSideAreaM2} m² • Wt: {materials.topMylarWeightGrams.toFixed(1)} g ({materials.topMylarWeightKg.toFixed(3)} kg) = <strong className="text-white">₹{materials.topMylarCostInr}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 bg-slate-950 border border-amber-500/40 rounded-lg px-2 py-1" title="Top Mylar Thickness in Microns">
+                    <EditableNumberInput
+                      min={10}
+                      max={500}
+                      step={5}
+                      value={materials.mylarTopThicknessUm}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarMicronChange(config, undefined, val))
+                      }
+                      className="w-11 bg-transparent text-right font-mono font-bold text-amber-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">µm</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-slate-950 border border-amber-500/40 rounded-lg px-2 py-1" title="Top Mylar Rate in ₹/kg">
+                    <span className="text-amber-300 font-mono text-[10px]">₹</span>
+                    <EditableNumberInput
+                      min={0}
+                      max={10000}
+                      step={5}
+                      value={materials.activeTopMylarRateInrPerKg}
+                      onChange={(val) =>
+                        onChangeConfig(applyMylarRateChange(config, 'top', val))
+                      }
+                      className="w-12 bg-transparent text-right font-mono font-bold text-amber-300 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">/kg</span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {[19, 25, 36, 50, 75, 100, 125].map((th) => {
+                  const rateForTh = getMylarRateForMicron(th, config);
+                  return (
+                    <button
+                      key={th}
+                      type="button"
+                      onClick={() => {
+                        soundFx.playClick();
+                        onChangeConfig(applyMylarMicronChange(config, undefined, th));
+                      }}
+                      className={`py-1 rounded text-[10px] font-mono font-bold border transition-all cursor-pointer flex flex-col items-center leading-tight ${
+                        materials.mylarTopThicknessUm === th
+                          ? 'bg-amber-600 border-amber-400 text-white'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <span>{th}µm</span>
+                      <span className="text-[8px] opacity-80">₹{rateForTh}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -1449,14 +2112,24 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <label className="text-slate-300 font-medium">MEKP Catalyst Ratio (%):</label>
-                  <span className="font-mono font-bold text-amber-400">{config.catalystPercent}%</span>
+                  <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-amber-500">
+                    <EditableNumberInput
+                      min={0.1}
+                      max={10}
+                      step={0.1}
+                      value={config.catalystPercent}
+                      onChange={(val) => updateField('catalystPercent', val)}
+                      className="w-14 bg-transparent text-right font-mono font-bold text-amber-400 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">%</span>
+                  </div>
                 </div>
                 <input
                   type="range"
                   min="1.0"
                   max="3.0"
                   step="0.1"
-                  value={config.catalystPercent}
+                  value={Math.min(3.0, Math.max(1.0, config.catalystPercent))}
                   onChange={(e) => updateField('catalystPercent', Number(e.target.value))}
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
                 />
@@ -1473,9 +2146,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <span className="text-xs font-mono font-bold text-purple-300 flex items-center gap-1.5 uppercase">
                     <Thermometer className="w-4 h-4 text-purple-400" /> Shop Ambient Temperature
                   </span>
-                  <span className="text-xs font-mono font-extrabold text-white bg-purple-950/80 px-2 py-0.5 rounded border border-purple-500/40">
-                    {materials.ambientTempC} °C
-                  </span>
+                  <div className="flex items-center gap-1 bg-purple-950/80 border border-purple-500/40 rounded px-2 py-0.5 focus-within:border-purple-400">
+                    <EditableNumberInput
+                      min={5}
+                      max={60}
+                      step={1}
+                      value={materials.ambientTempC}
+                      onChange={(val) => updateField('ambientTempC', val)}
+                      className="w-12 bg-transparent text-right font-mono font-extrabold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-purple-200 font-mono text-xs">°C</span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
@@ -1496,7 +2177,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   min="15"
                   max="42"
                   step="1"
-                  value={materials.ambientTempC}
+                  value={Math.min(42, Math.max(15, materials.ambientTempC))}
                   onChange={(e) => updateField('ambientTempC', Number(e.target.value))}
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
@@ -1556,16 +2237,27 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <label className="text-slate-300 font-medium flex items-center gap-1">
                     <span>Cobalt Octoate Promoter (6% Active Co):</span>
                   </label>
-                  <span className="font-mono font-bold text-purple-400">
-                    {(config.cobaltPercent ?? 0.2).toFixed(2)}% ({(materials.cobaltVolumeMl * 0.5).toFixed(1)} mL)
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-purple-500">
+                      <EditableNumberInput
+                        min={0.01}
+                        max={5.0}
+                        step={0.05}
+                        value={config.cobaltPercent ?? 0.2}
+                        onChange={(val) => updateField('cobaltPercent', val)}
+                        className="w-14 bg-transparent text-right font-mono font-bold text-purple-400 focus:outline-none text-xs"
+                      />
+                      <span className="text-slate-400 font-mono text-[10px]">%</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">({(materials.cobaltVolumeMl * 0.5).toFixed(1)} mL)</span>
+                  </div>
                 </div>
                 <input
                   type="range"
                   min="0.05"
                   max="0.50"
                   step="0.05"
-                  value={config.cobaltPercent ?? 0.2}
+                  value={Math.min(0.50, Math.max(0.05, config.cobaltPercent ?? 0.2))}
                   onChange={(e) => updateField('cobaltPercent', Number(e.target.value))}
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
                 />
@@ -1720,34 +2412,46 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </div>
 
                 {/* Filler Loading Slider */}
-                {materials.fillerType !== 'none' && (
-                  <div className="flex flex-col gap-1 pt-1">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-slate-300">Mineral Filler Loading Ratio:</span>
-                      <span className="font-mono font-bold text-emerald-400">{materials.fillerPercent}% PHR</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="40"
-                      step="5"
-                      value={materials.fillerPercent}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        updateField('fillerPercent', val);
-                        if (val === 0) updateField('fillerType', 'none');
-                        else if (materials.fillerType === 'none') updateField('fillerType', 'calcium_carbonate');
-                      }}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                    />
-                    <div className="flex justify-between text-[9px] font-mono text-slate-500">
-                      <span>0% (Unfilled)</span>
-                      <span>15% (Optimal CaCO₃)</span>
-                      <span>25% (ATH Flame)</span>
-                      <span>40% (Max Heavy Bulk)</span>
+                <div className="flex flex-col gap-1 pt-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-300">Mineral Filler Loading Ratio (% PHR):</span>
+                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded px-2 py-0.5 focus-within:border-emerald-500">
+                      <EditableNumberInput
+                        min={0}
+                        max={80}
+                        step={1}
+                        value={materials.fillerPercent}
+                        onChange={(val) => {
+                          updateField('fillerPercent', val);
+                          if (val === 0) updateField('fillerType', 'none');
+                          else if (materials.fillerType === 'none') updateField('fillerType', 'calcium_carbonate');
+                        }}
+                        className="w-12 bg-transparent text-right font-mono font-bold text-emerald-400 focus:outline-none text-xs"
+                      />
+                      <span className="text-slate-400 font-mono text-[10px]">%</span>
                     </div>
                   </div>
-                )}
+                  <input
+                    type="range"
+                    min="0"
+                    max="40"
+                    step="1"
+                    value={Math.min(40, materials.fillerPercent)}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      updateField('fillerPercent', val);
+                      if (val === 0) updateField('fillerType', 'none');
+                      else if (materials.fillerType === 'none') updateField('fillerType', 'calcium_carbonate');
+                    }}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <div className="flex justify-between text-[9px] font-mono text-slate-500">
+                    <span>0% (Unfilled)</span>
+                    <span>15% (Optimal CaCO₃)</span>
+                    <span>25% (ATH Flame)</span>
+                    <span>40% (Max Heavy Bulk)</span>
+                  </div>
+                </div>
 
                 <p className="text-[10px] text-slate-300 font-sans leading-relaxed pt-1">
                   {materials.fillerEffectNote}
@@ -1760,9 +2464,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <span className="text-xs font-mono font-bold text-blue-300 flex items-center gap-1.5 uppercase">
                     <Droplet className="w-4 h-4 text-blue-400" /> Styrene Monomer Diluent
                   </span>
-                  <span className="text-xs font-mono font-extrabold text-white bg-blue-950/80 px-2 py-0.5 rounded border border-blue-500/40">
-                    {materials.styreneDiluentPercent.toFixed(1)}% PHR ({(materials.styreneMonomerWeightGrams * 0.5).toFixed(0)} g for 50%)
-                  </span>
+                  <div className="flex items-center gap-1 bg-blue-950/80 border border-blue-500/40 rounded px-2 py-0.5 focus-within:border-blue-400">
+                    <EditableNumberInput
+                      min={0}
+                      max={20}
+                      step={0.5}
+                      value={materials.styreneDiluentPercent}
+                      onChange={(val) => updateField('styreneDiluentPercent', val)}
+                      className="w-12 bg-transparent text-right font-mono font-extrabold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-blue-200 font-mono text-[10px]">% PHR</span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
@@ -1783,7 +2495,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   min="0.0"
                   max="8.0"
                   step="0.5"
-                  value={materials.styreneDiluentPercent}
+                  value={Math.min(8.0, materials.styreneDiluentPercent)}
                   onChange={(e) => updateField('styreneDiluentPercent', Number(e.target.value))}
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                 />
@@ -1844,9 +2556,22 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <span className="text-xs font-mono font-bold text-emerald-300 flex items-center gap-1.5 uppercase">
                     <Sun className="w-4 h-4 text-emerald-400" /> UV Stabilizer & Photodegradation System
                   </span>
-                  <span className="text-xs font-mono font-extrabold text-white bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/40">
-                    {materials.uvStabilizerPercent.toFixed(2)}% PHR ({(materials.uvStabilizerWeightGrams * 0.5).toFixed(1)} g for 50%)
-                  </span>
+                  <div className="flex items-center gap-1 bg-emerald-950/80 border border-emerald-500/40 rounded px-2 py-0.5 focus-within:border-emerald-400">
+                    <EditableNumberInput
+                      min={0}
+                      max={5}
+                      step={0.05}
+                      value={materials.uvStabilizerPercent}
+                      onChange={(val) => {
+                        updateField('uvStabilizerPercent', val);
+                        if (val > 0 && materials.uvStabilizerType === 'none') {
+                          updateField('uvStabilizerType', 'synergistic_uva_hals');
+                        }
+                      }}
+                      className="w-12 bg-transparent text-right font-mono font-extrabold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-emerald-200 font-mono text-[10px]">% PHR</span>
+                  </div>
                 </div>
 
                 {/* UV Stabilizer Package Type Selector */}
@@ -1933,7 +2658,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                       min="0.05"
                       max="1.00"
                       step="0.05"
-                      value={materials.uvStabilizerPercent}
+                      value={Math.min(1.0, Math.max(0.05, materials.uvStabilizerPercent))}
                       onChange={(e) => updateField('uvStabilizerPercent', Number(e.target.value))}
                       className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                     />
@@ -1969,16 +2694,27 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <label className="text-slate-300 font-medium">Pigment Concentration (Tuning Transparency):</label>
-                  <span className="font-mono font-bold text-cyan-400">
-                    {materials.pigmentPercent.toFixed(1)}% ({materials.lightTransmittancePercent}% Light Pass)
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-cyan-500">
+                      <EditableNumberInput
+                        min={0}
+                        max={10}
+                        step={0.1}
+                        value={materials.pigmentPercent}
+                        onChange={(val) => updateField('pigmentPercent', val)}
+                        className="w-12 bg-transparent text-right font-mono font-bold text-cyan-400 focus:outline-none text-xs"
+                      />
+                      <span className="text-slate-400 font-mono text-[10px]">%</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-cyan-400">({materials.lightTransmittancePercent}% Pass)</span>
+                  </div>
                 </div>
                 <input
                   type="range"
                   min="0.0"
                   max="5.0"
                   step="0.1"
-                  value={materials.pigmentPercent}
+                  value={Math.min(5.0, materials.pigmentPercent)}
                   onChange={(e) => updateField('pigmentPercent', Number(e.target.value))}
                   className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                 />
@@ -2109,7 +2845,20 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
               <div className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
                   <label className="text-slate-300 font-medium">FiberMat Layers Count:</label>
-                  <span className="font-mono font-bold text-blue-400 whitespace-nowrap">{config.glassLayers} Layer(s) ({config.glassLayers * materials.glassFiberSpec.gsmPerLayer} GSM total)</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-blue-500">
+                      <EditableNumberInput
+                        min={1}
+                        max={20}
+                        step={1}
+                        value={config.glassLayers}
+                        onChange={(val) => updateField('glassLayers', Math.max(1, Math.round(val)))}
+                        className="w-12 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
+                      />
+                      <span className="text-slate-400 font-mono text-[10px]">Ply</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-blue-400 whitespace-nowrap">({materials.glassWeightGsm} GSM Total)</span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[1, 2, 3, 4].map((l) => (
@@ -2128,15 +2877,31 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </div>
               </div>
 
+              {/* Multi-Ply Laminate Stack Builder (Different Ply Types & Custom GSMs) */}
+              <PlyStackBuilder
+                config={config}
+                materials={materials}
+                onChangeConfig={onChangeConfig}
+                compact={false}
+              />
+
               {/* Fiberglass-Specific Resin Ratio Selector & Technical Calibration */}
               <div className="bg-slate-950 p-3 rounded-xl border border-blue-500/30 flex flex-col gap-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
                   <span className="text-[11px] font-mono font-bold uppercase text-blue-300 flex items-center gap-1.5 shrink-0">
                     <FlaskConical className="w-3.5 h-3.5 text-blue-400 shrink-0" /> Resin-to-Glass Calibration
                   </span>
-                  <span className="text-xs font-mono font-extrabold text-white bg-blue-950 px-2 py-0.5 rounded border border-blue-500/40 shrink-0 whitespace-nowrap">
-                    {Math.round(config.resinToGlassRatio * 100)}% Resin / {Math.round((1 - config.resinToGlassRatio) * 100)}% Glass
-                  </span>
+                  <div className="flex items-center gap-1 bg-blue-950 border border-blue-500/40 rounded px-2 py-0.5 focus-within:border-blue-400">
+                    <EditableNumberInput
+                      min={20}
+                      max={90}
+                      step={1}
+                      value={Math.round(config.resinToGlassRatio * 100)}
+                      onChange={(pct) => updateField('resinToGlassRatio', Math.min(0.90, Math.max(0.20, pct / 100)))}
+                      className="w-10 bg-transparent text-right font-mono font-extrabold text-white focus:outline-none text-xs"
+                    />
+                    <span className="text-[10px] font-mono text-blue-200">% Resin / {Math.round((1 - config.resinToGlassRatio) * 100)}% Glass</span>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -2152,7 +2917,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                     min="0.35"
                     max="0.80"
                     step="0.01"
-                    value={config.resinToGlassRatio}
+                    value={Math.min(0.80, Math.max(0.35, config.resinToGlassRatio))}
                     onChange={(e) => updateField('resinToGlassRatio', Number(e.target.value))}
                     className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
@@ -2371,21 +3136,92 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           {step4SubTab === 'upper_mylar' && (
             <div className="flex flex-col gap-4">
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
-                Subsequent to applying the resin mixture, unroll the upper Mylar film smoothly over the resin compound to seal the wet composite layer.
+                Subsequent to applying the resin mixture, unroll the <strong className="text-amber-300">2nd (Top) Mylar film</strong> smoothly over the wet composite layer. You can use a thicker top Mylar film (e.g., <strong className="text-amber-300">100 Micron</strong> over a <strong className="text-cyan-300">25 Micron</strong> bottom film) for superior top-surface smoothness and pressure distribution.
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-xl border border-amber-500/30 flex flex-col gap-2.5 text-xs font-mono">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-amber-300 font-bold uppercase text-[10px]">2nd (Top) Mylar Thickness &amp; Auto Rate:</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <EditableNumberInput
+                        value={config.mylarTopThicknessUm ?? config.mylarThicknessUm}
+                        min={12}
+                        max={350}
+                        step={1}
+                        onChange={(val) => {
+                          soundFx.playClick();
+                          onChangeConfig(applyMylarMicronChange(config, undefined, val));
+                        }}
+                        className="w-14 bg-slate-900 text-amber-300 font-mono text-xs font-bold px-2 py-0.5 rounded border border-amber-500/40 focus:outline-none text-right"
+                      />
+                      <span className="text-[10px] text-slate-400">µm</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-amber-300">₹</span>
+                      <EditableNumberInput
+                        value={materials.activeTopMylarRateInrPerKg}
+                        min={0}
+                        max={10000}
+                        step={5}
+                        onChange={(val) => {
+                          soundFx.playClick();
+                          onChangeConfig(applyMylarRateChange(config, 'top', val));
+                        }}
+                        className="w-14 bg-slate-900 text-amber-300 font-mono text-xs font-bold px-2 py-0.5 rounded border border-amber-500/40 focus:outline-none text-right"
+                      />
+                      <span className="text-[10px] text-slate-400">/kg</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-5 gap-1">
+                  {[25, 36, 50, 75, 100].map((um) => {
+                    const activeTop = (config.mylarTopThicknessUm ?? config.mylarThicknessUm) === um;
+                    const rateForUm = getMylarRateForMicron(um, config);
+                    return (
+                      <button
+                        key={um}
+                        type="button"
+                        onClick={() => {
+                          soundFx.playClick();
+                          onChangeConfig(applyMylarMicronChange(config, undefined, um));
+                        }}
+                        className={`py-1 rounded font-mono text-[10px] font-bold border transition-all flex flex-col items-center leading-tight ${
+                          activeTop
+                            ? 'bg-amber-600/30 border-amber-400 text-amber-200'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span>{um}µm</span>
+                        <span className="text-[8px] opacity-80">₹{rateForUm}/kg</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col gap-2 text-xs font-mono">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Upper Mylar Roll Width:</span>
+                  <span className="text-slate-400">Mylar Roll Width:</span>
                   <strong className="text-emerald-400">{config.mylarWidthMm} mm</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Carrier Film Thickness:</span>
-                  <strong className="text-blue-300">{config.mylarThicknessUm} µm BOPET Film</strong>
+                  <span className="text-slate-400">1st Layer ({materials.mylarBottomThicknessUm}µm @ ₹{materials.activeBottomMylarRateInrPerKg}/kg):</span>
+                  <strong className="text-cyan-300">
+                    {materials.bottomMylarWeightGrams.toFixed(1)} g / ₹{materials.bottomMylarCostInr.toFixed(1)}
+                  </strong>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Covered Resin Area:</span>
-                  <strong className="text-cyan-300">{materials.sheetAreaM2.toFixed(2)} m²</strong>
+                  <span className="text-slate-400">2nd Layer ({materials.mylarTopThicknessUm}µm @ ₹{materials.activeTopMylarRateInrPerKg}/kg):</span>
+                  <strong className="text-amber-300">
+                    {materials.topMylarWeightGrams.toFixed(1)} g / ₹{materials.topMylarCostInr.toFixed(1)}
+                  </strong>
+                </div>
+                <div className="flex justify-between border-t border-slate-800 pt-1.5">
+                  <span className="text-slate-400">Total Mylar Mass &amp; Cost:</span>
+                  <strong className="text-blue-300">
+                    {materials.totalMylarWeightKg.toFixed(3)} kg (₹{materials.mylarCostInr.toFixed(0)})
+                  </strong>
                 </div>
               </div>
 
@@ -2493,10 +3329,29 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                   <span className="text-slate-400">Upper Die Status:</span>
                   <strong className="text-emerald-400">Engaged over Sheet Assembly</strong>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Compression Load:</span>
-                  <strong className="text-amber-400">50 kg / meter</strong>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Compression Load (kg/m):</span>
+                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-amber-500">
+                    <EditableNumberInput
+                      min={5}
+                      max={500}
+                      step={5}
+                      value={config.weightKgPerMeter}
+                      onChange={(val) => updateField('weightKgPerMeter', val)}
+                      className="w-14 bg-transparent text-right font-mono font-bold text-amber-400 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 text-[10px]">kg/m</span>
+                  </div>
                 </div>
+                <input
+                  type="range"
+                  min="10"
+                  max="200"
+                  step="5"
+                  value={Math.min(200, Math.max(10, config.weightKgPerMeter))}
+                  onChange={(e) => updateField('weightKgPerMeter', Number(e.target.value))}
+                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
               </div>
 
               <button
@@ -2542,22 +3397,72 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs">
               <label className="text-slate-300 font-medium">Drying Temp (°C):</label>
-              <span className="font-mono font-bold text-amber-400">{config.dryingTempC} °C</span>
+              <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-amber-500">
+                <EditableNumberInput
+                  min={15}
+                  max={180}
+                  step={1}
+                  value={config.dryingTempC}
+                  onChange={(val) => updateField('dryingTempC', val)}
+                  className="w-14 bg-transparent text-right font-mono font-bold text-amber-400 focus:outline-none text-xs"
+                />
+                <span className="text-slate-400 font-mono text-[10px]">°C</span>
+              </div>
             </div>
             <input
               type="range"
               min="25"
               max="80"
               step="5"
-              value={config.dryingTempC}
+              value={Math.min(80, Math.max(25, config.dryingTempC))}
               onChange={(e) => updateField('dryingTempC', Number(e.target.value))}
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
           </div>
 
+          {/* Target Drying Time (Minutes) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <label className="text-slate-300 font-medium">Drying Duration (Minutes):</label>
+              <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-blue-500">
+                <EditableNumberInput
+                  min={5}
+                  max={240}
+                  step={5}
+                  value={config.dryingTimeMinutes}
+                  onChange={(val) => updateField('dryingTimeMinutes', val)}
+                  className="w-14 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
+                />
+                <span className="text-slate-400 font-mono text-[10px]">min</span>
+              </div>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="120"
+              step="5"
+              value={Math.min(120, Math.max(10, config.dryingTimeMinutes))}
+              onChange={(e) => updateField('dryingTimeMinutes', Number(e.target.value))}
+              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+
           {/* Speed Multiplier */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-slate-300">Simulation Speed Multiplier:</label>
+            <div className="flex items-center justify-between text-xs">
+              <label className="text-xs font-medium text-slate-300">Simulation Speed Multiplier:</label>
+              <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-amber-500">
+                <EditableNumberInput
+                  min={1}
+                  max={120}
+                  step={1}
+                  value={speedMultiplier}
+                  onChange={(val) => onChangeSpeed(val)}
+                  className="w-12 bg-transparent text-right font-mono font-bold text-amber-400 focus:outline-none text-xs"
+                />
+                <span className="text-slate-400 font-mono text-[10px]">x</span>
+              </div>
+            </div>
             <div className="grid grid-cols-4 gap-2">
               {[1, 5, 10, 60].map((s) => (
                 <button
@@ -2950,7 +3855,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <label className="text-slate-300 font-medium">Flexural Mechanical Load Check:</label>
-                  <span className="font-mono font-bold text-blue-400">{Math.round(flexAmount * 100)}% Load</span>
+                  <div className="flex items-center gap-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-0.5 focus-within:border-blue-500">
+                    <EditableNumberInput
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={Math.round(flexAmount * 100)}
+                      onChange={(pct) => onChangeFlex(Math.min(1, Math.max(0, pct / 100)))}
+                      className="w-12 bg-transparent text-right font-mono font-bold text-blue-400 focus:outline-none text-xs"
+                    />
+                    <span className="text-slate-400 font-mono text-[10px]">% Load</span>
+                  </div>
                 </div>
                 <input
                   type="range"

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { FRPConfig, MaterialCalculations, UVStabilizerType, ResinType } from '../types';
 import { soundFx } from '../utils/soundEffects';
+import { EditableNumberInput } from './EditableNumberInput';
 
 interface StyreneUvModalProps {
   isOpen: boolean;
@@ -581,9 +582,19 @@ export const StyreneUvModal: React.FC<StyreneUvModalProps> = ({
                       <span className="font-semibold text-blue-300 flex items-center gap-1">
                         <Droplet className="w-3.5 h-3.5 text-blue-400" /> Styrene Monomer Diluent:
                       </span>
-                      <span className="font-mono font-bold text-white bg-blue-950 px-2 py-0.5 rounded border border-blue-500/30">
-                        {calibratorStyrene.toFixed(1)}% PHR ({(materials.totalResinWeightKg * (calibratorStyrene / 100) * 1000).toFixed(0)} g)
-                      </span>
+                      <div className="flex items-center gap-1 font-mono">
+                        <EditableNumberInput
+                          value={calibratorStyrene}
+                          onChange={(val) => setCalibratorStyrene(val)}
+                          min={0}
+                          max={15}
+                          step={0.5}
+                          className="w-16 bg-slate-950 border border-blue-500/40 rounded px-1.5 py-0.5 text-right text-xs text-white font-mono font-bold focus:outline-none focus:border-blue-400"
+                        />
+                        <span className="text-xs font-bold text-blue-300">
+                          % PHR ({(materials.totalResinWeightKg * (calibratorStyrene / 100) * 1000).toFixed(0)} g)
+                        </span>
+                      </div>
                     </div>
 
                     <input
@@ -614,9 +625,19 @@ export const StyreneUvModal: React.FC<StyreneUvModalProps> = ({
                       <span className="font-semibold text-emerald-300 flex items-center gap-1">
                         <Sun className="w-3.5 h-3.5 text-emerald-400" /> UV Stabilizer System:
                       </span>
-                      <span className="font-mono font-bold text-white bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/30">
-                        {calibratorUvPercent.toFixed(2)}% PHR ({(materials.totalResinWeightKg * (calibratorUvPercent / 100) * 1000).toFixed(1)} g)
-                      </span>
+                      <div className="flex items-center gap-1 font-mono">
+                        <EditableNumberInput
+                          value={calibratorUvPercent}
+                          onChange={(val) => setCalibratorUvPercent(val)}
+                          min={0}
+                          max={5}
+                          step={0.05}
+                          className="w-16 bg-slate-950 border border-emerald-500/40 rounded px-1.5 py-0.5 text-right text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-400"
+                        />
+                        <span className="text-xs font-bold text-emerald-300">
+                          % PHR ({(materials.totalResinWeightKg * (calibratorUvPercent / 100) * 1000).toFixed(1)} g)
+                        </span>
+                      </div>
                     </div>
 
                     {/* UV Type Buttons */}

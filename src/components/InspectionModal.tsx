@@ -179,15 +179,18 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Mylar Carrier Film Roll</span>
-                <strong className="text-[11px] sm:text-xs text-blue-300 font-mono">
-                  {config.mylarWidthMm}mm Roll ({config.mylarThicknessUm}µm)
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Mylar Film (Bottom + Top)</span>
+                <strong className="text-[11px] sm:text-xs text-blue-300 font-mono block">
+                  1st: {materials.mylarBottomThicknessUm}µm (₹{materials.activeBottomMylarRateInrPerKg}/kg) + Top: {materials.mylarTopThicknessUm}µm (₹{materials.activeTopMylarRateInrPerKg}/kg)
                 </strong>
+                <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                  {config.mylarWidthMm}mm Roll • {materials.totalMylarWeightKg.toFixed(3)} kg (₹{materials.mylarCostInr})
+                </span>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Polymer Resin Chemistry</span>
                 <strong className="text-[11px] sm:text-xs text-indigo-300 font-mono">
-                  {materials.resinTypeSpec.name} (₹{materials.resinTypeSpec.costPerKgInr}/kg)
+                  {materials.resinTypeSpec.name} (₹{materials.activeResinRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
@@ -197,21 +200,30 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
-                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Glass Fiber</span>
-                <strong className="text-[11px] sm:text-xs text-emerald-300 font-mono">
-                  {materials.totalGlassWeightKg.toFixed(2)} kg ({materials.glassWeightGsm} gsm)
+                <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Reinforcement &amp; Ply Stack</span>
+                <strong className="text-[11px] sm:text-xs text-emerald-300 font-mono block">
+                  {materials.totalGlassWeightKg.toFixed(2)} kg ({materials.glassWeightGsm} gsm • ₹{materials.activeGlassRateInrPerKg}/kg)
                 </strong>
+                <span className="text-[10px] text-slate-300 font-mono block mt-0.5">
+                  {materials.plySummaryText}
+                </span>
+                {(materials.polymerMeshWeightKg > 0 || materials.printedClothWeightKg > 0) && (
+                  <span className="text-[9.5px] text-teal-300 font-mono block mt-0.5">
+                    {materials.polymerMeshWeightKg > 0 && `Poly Mesh: ${materials.polymerMeshWeightKg.toFixed(2)}kg (@₹${materials.activePolymerMeshRateInrPerKg}/kg = ₹${materials.polymerMeshCostInr}) `}
+                    {materials.printedClothWeightKg > 0 && `Printed Cloth: ${materials.printedClothWeightKg.toFixed(2)}kg (@₹${materials.activePrintedClothRateInrPerKg}/kg = ₹${materials.printedClothCostInr})`}
+                  </span>
+                )}
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">MEKP Catalyst ({config.catalystPercent}%)</span>
                 <strong className="text-[11px] sm:text-xs text-amber-300 font-mono">
-                  {materials.catalystVolumeMl.toFixed(0)} mL
+                  {materials.catalystVolumeMl.toFixed(0)} mL (₹{materials.activeCatalystRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Cobalt Octoate 6% ({materials.cobaltPercent}%)</span>
                 <strong className="text-[11px] sm:text-xs text-purple-300 font-mono">
-                  {materials.cobaltVolumeMl.toFixed(1)} mL ({materials.cobaltWeightGrams.toFixed(1)} g)
+                  {materials.cobaltVolumeMl.toFixed(1)} mL ({materials.cobaltWeightGrams.toFixed(1)} g • ₹{materials.activeCobaltRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
@@ -223,19 +235,19 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Mineral Filler ({materials.fillerPercent}% PHR)</span>
                 <strong className="text-[11px] sm:text-xs text-emerald-300 font-mono">
-                  {materials.fillerWeightKg > 0 ? `${materials.fillerWeightKg.toFixed(2)} kg (${materials.fillerType.replace('_', ' ')})` : '0 kg (Unfilled)'}
+                  {materials.fillerWeightKg > 0 ? `${materials.fillerWeightKg.toFixed(2)} kg (${materials.fillerType.replace('_', ' ')} • ₹${materials.activeFillerRateInrPerKg}/kg)` : `0 kg (Unfilled • ₹${materials.activeFillerRateInrPerKg}/kg)`}
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">Styrene Monomer Diluent</span>
                 <strong className="text-[11px] sm:text-xs text-blue-300 font-mono">
-                  {materials.styreneDiluentPercent}% PHR ({materials.styreneMonomerWeightGrams.toFixed(1)} g)
+                  {materials.styreneDiluentPercent}% PHR ({materials.styreneMonomerWeightGrams.toFixed(1)} g • ₹{materials.activeStyreneRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-mono block">UV Stabilizer System</span>
                 <strong className="text-[11px] sm:text-xs text-teal-300 font-mono">
-                  {materials.uvStabilizerPercent}% PHR ({materials.uvStabilizerWeightGrams.toFixed(1)} g - {materials.uvStabilizerType.replace(/_/g, ' ')})
+                  {materials.uvStabilizerPercent}% PHR ({materials.uvStabilizerWeightGrams.toFixed(1)} g • ₹{materials.activeUvRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
@@ -243,7 +255,7 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 <strong className="text-[11px] sm:text-xs text-cyan-300 font-mono">
                   {materials.pigmentWeightGrams < 1000
                     ? `${materials.pigmentWeightGrams.toFixed(1)} g`
-                    : `${materials.pigmentWeightKg.toFixed(3)} kg`}
+                    : `${materials.pigmentWeightKg.toFixed(3)} kg`} (₹{materials.activePigmentRateInrPerKg}/kg)
                 </strong>
               </div>
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
@@ -585,7 +597,7 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs font-mono">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 text-xs font-mono">
               <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-slate-800">
                 <span className="text-[9px] text-slate-500 uppercase block">Ex-Factory Price</span>
                 <strong className="text-white text-xs sm:text-sm">₹{Math.round(materials.estimatedCostInr).toLocaleString('en-IN')}</strong>
@@ -602,11 +614,16 @@ export const InspectionModal: React.FC<InspectionModalProps> = ({
                 <span className="text-[9px] text-slate-500 uppercase block">Rate / Kg Mass</span>
                 <strong className="text-blue-300 text-xs sm:text-sm">₹{materials.pricePerKgInr}/kg</strong>
               </div>
+              <div className="bg-slate-900 p-2 sm:p-2.5 rounded-lg border border-rose-500/30 col-span-2 sm:col-span-1">
+                <span className="text-[9px] text-slate-500 uppercase block">Installation Labor</span>
+                <strong className="text-rose-300 text-xs sm:text-sm">₹{materials.activeLaborRateInrPerKg}/kg (₹{materials.laborEnergyCostInr})</strong>
+                <span className="text-[9px] text-slate-400 block truncate">{materials.activeLaborTierLabel}</span>
+              </div>
             </div>
 
             <div className="bg-amber-950/30 border border-amber-500/30 p-2.5 rounded-lg flex items-center justify-between text-xs text-amber-200">
               <div className="flex items-center gap-2 font-mono">
-                <span>18% GST (HSN 3920): <strong>₹{materials.gstAmountInr.toLocaleString('en-IN')} INR</strong></span>
+                <span>{materials.activeGstPercent}% GST (HSN 3920): <strong>₹{materials.gstAmountInr.toLocaleString('en-IN')} INR</strong></span>
               </div>
               <div className="font-bold font-mono text-amber-300 text-sm">
                 Total Tax Incl: ₹{materials.totalCostWithGstInr.toLocaleString('en-IN')} INR

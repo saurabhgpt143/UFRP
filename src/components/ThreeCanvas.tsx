@@ -579,7 +579,9 @@ export const ThreeCanvas: React.FC<ThreeCanvasProps> = ({
         const fiberGeo = new THREE.PlaneGeometry(fiberWidthM, lengthM * 0.98, 20, 40);
         fiberGeo.rotateX(-Math.PI / 2);
 
-        const fiberTex = createFiberglassTexture(fiberWidthM, lengthM);
+        const hasPolymerMesh = materials.polymerMeshWeightKg > 0 || config.fiberType === 'polymer_mesh';
+        const hasPrintedCloth = materials.printedClothWeightKg > 0 || config.fiberType === 'printed_cloth';
+        const fiberTex = createFiberglassTexture(fiberWidthM, lengthM, hasPolymerMesh, hasPrintedCloth);
 
         const fiberMat = new THREE.MeshStandardMaterial({
           map: fiberTex,
@@ -1131,8 +1133,13 @@ function createTrapezoidalGeometry(
   return geo;
 }
 
-// Helper: Procedural Fiberglass CSM & Woven Roving Texture Generator
-function createFiberglassTexture(widthM: number, lengthM: number): THREE.CanvasTexture {
+// Helper: Procedural Fiberglass CSM, Woven Roving, Polymer Mesh & Printed Cloth Texture Generator
+function createFiberglassTexture(
+  widthM: number,
+  lengthM: number,
+  hasPolymerMesh: boolean = false,
+  hasPrintedCloth: boolean = false
+): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
@@ -1199,6 +1206,47 @@ function createFiberglassTexture(widthM: number, lengthM: number): THREE.CanvasT
         else ctx.lineTo(g + offset, y);
       }
       ctx.stroke();
+    }
+
+    // 4. Biaxial Polymer Mesh Overlay (5x5 mm Open Grid Pattern)
+    if (hasPolymerMesh) {
+      ctx.strokeStyle = 'rgba(45, 212, 191, 0.92)';
+      ctx.lineWidth = 3.2;
+      const meshPitch = 24;
+      for (let m = 0; m <= 512; m += meshPitch) {
+        ctx.beginPath();
+        ctx.moveTo(m, 0);
+        ctx.lineTo(m, 512);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, m);
+        ctx.lineTo(512, m);
+        ctx.stroke();
+      }
+    }
+
+    // 5. Decorative Printed Cloth Interlayer Pattern
+    if (hasPrintedCloth) {
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.85)';
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.28)';
+      ctx.lineWidth = 2.0;
+      const tileStep = 64;
+      for (let tx = 32; tx < 512; tx += tileStep) {
+        for (let ty = 32; ty < 512; ty += tileStep) {
+          ctx.beginPath();
+          ctx.arc(tx, ty, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(tx - 18, ty);
+          ctx.lineTo(tx + 18, ty);
+          ctx.moveTo(tx, ty - 18);
+          ctx.lineTo(tx, ty + 18);
+          ctx.stroke();
+        }
+      }
     }
   }
 

@@ -29,6 +29,7 @@ import {
   generateEscPosBinary,
   generateThermalReceiptCanvas
 } from '../utils/thermalPrinterUtils';
+import { EditableNumberInput } from './EditableNumberInput';
 
 interface ThermalPrintModalProps {
   isOpen: boolean;
@@ -111,16 +112,37 @@ export const ThermalPrintModal: React.FC<ThermalPrintModalProps> = ({
     scaledUvGrams,
     totalLiquidBatchKg,
     scaledGlassKg,
-    fiberType: config.fiberType,
+    fiberType: materials.plySummaryText || config.fiberType,
     scaledTotalCompositeKg,
     ambientTempC: materials.ambientTempC,
     estimatedGelTimeMin: materials.estimatedGelTimeMin,
     peakExothermTempC: materials.peakExothermTempC,
     estimatedCostInr: materials.estimatedCostInr * scaleFactor,
     pricePerSqFtInr: materials.pricePerSqFtInr,
+    pricePerKgInr: materials.pricePerKgInr,
+    pricePerM2Inr: materials.pricePerM2Inr,
     gstAmountInr: materials.gstAmountInr * scaleFactor,
     totalCostWithGstInr: materials.totalCostWithGstInr * scaleFactor,
     paperWidthMm,
+    resinRateInrPerKg: materials.activeResinRateInrPerKg,
+    mekpRateInrPerKg: materials.activeCatalystRateInrPerKg,
+    cobaltRateInrPerKg: materials.activeCobaltRateInrPerKg,
+    pigmentRateInrPerKg: materials.activePigmentRateInrPerKg,
+    fillerRateInrPerKg: materials.activeFillerRateInrPerKg,
+    styreneRateInrPerKg: materials.activeStyreneRateInrPerKg,
+    uvRateInrPerKg: materials.activeUvRateInrPerKg,
+    glassRateInrPerKg: materials.activeGlassRateInrPerKg,
+    polymerMeshKg: (materials.polymerMeshWeightKg || 0) * scaleFactor,
+    polymerMeshRateInrPerKg: materials.activePolymerMeshRateInrPerKg,
+    printedClothKg: (materials.printedClothWeightKg || 0) * scaleFactor,
+    printedClothRateInrPerKg: materials.activePrintedClothRateInrPerKg,
+    bottomMylarUm: materials.mylarBottomThicknessUm,
+    bottomMylarRateInrPerKg: materials.activeBottomMylarRateInrPerKg,
+    topMylarUm: materials.mylarTopThicknessUm,
+    topMylarRateInrPerKg: materials.activeTopMylarRateInrPerKg,
+    totalMylarKg: (materials.totalMylarWeightKg || 0) * scaleFactor,
+    laborRateInrPerKg: materials.activeLaborRateInrPerKg,
+    laborTierLabel: materials.activeLaborTierLabel,
   };
 
   // 1. Isolated iFrame Printing
@@ -208,6 +230,9 @@ export const ThermalPrintModal: React.FC<ThermalPrintModalProps> = ({
 
   // 4. Format ASCII Text for Clipboard Copy
   const generateAsciiSlip = () => {
+    const totalPerKgWithGst = Math.round(
+      (materials.totalCostWithGstInr * scaleFactor) / Math.max(0.01, scaledTotalCompositeKg)
+    );
     return `================================================
           UFRP BY M.G. INDUSTRIES
       FRP RESIN MIXTURE BATCH SLIP (POS-${paperWidthMm === '58mm' ? '58' : '80'})
@@ -223,18 +248,19 @@ COLOR      : ${receiptData.colorStr}
 RESIN TYPE : ${receiptData.resinTypeStr}
 BATCH MODE : ${receiptData.batchScaleLabel} (Scale: ${scaleFactor.toFixed(2)}x)
 ------------------------------------------------
-EXACT CHEMICAL DOSING RECIPE:
+EXACT CHEMICAL DOSING RECIPE (WITH ₹/KG RATES):
 ------------------------------------------------
-1. RESIN MATRIX    : ${scaledResinKg.toFixed(2)} KG
-2. MEKP CATALYST   : ${scaledMekpMl.toFixed(1)} mL (${scaledMekpGrams.toFixed(1)} g) [@ ${config.catalystPercent}% PHR]
-3. COBALT PROMOTER : ${scaledCobaltMl.toFixed(1)} mL (${scaledCobaltGrams.toFixed(1)} g) [@ ${(config.cobaltPercent ?? 0.2)}% PHR]
-4. PIGMENT PASTE   : ${scaledPigmentGrams.toFixed(1)} g  [@ ${materials.pigmentPercent}% PHR]
-5. MINERAL FILLER  : ${scaledFillerKg > 0 ? `${scaledFillerKg.toFixed(2)} KG` : 'N/A'} [${config.fillerType ?? 'None'}]
-6. STYRENE DILUENT : ${scaledStyreneGrams.toFixed(1)} g [@ ${materials.styreneDiluentPercent}% PHR]
-7. UV STABILIZER   : ${scaledUvGrams.toFixed(1)} g [@ ${materials.uvStabilizerPercent}% PHR - ${materials.uvStabilizerType.toUpperCase().replace(/_/g, ' ')}]
+1. RESIN MATRIX    : ${scaledResinKg.toFixed(2)} KG (@ ₹${materials.activeResinRateInrPerKg}/kg)
+2. MEKP CATALYST   : ${scaledMekpMl.toFixed(1)} mL (${scaledMekpGrams.toFixed(1)} g) [@ ${config.catalystPercent}% PHR • ₹${materials.activeCatalystRateInrPerKg}/kg]
+3. COBALT PROMOTER : ${scaledCobaltMl.toFixed(1)} mL (${scaledCobaltGrams.toFixed(1)} g) [@ ${(config.cobaltPercent ?? 0.2)}% PHR • ₹${materials.activeCobaltRateInrPerKg}/kg]
+4. PIGMENT PASTE   : ${scaledPigmentGrams.toFixed(1)} g  [@ ${materials.pigmentPercent}% PHR • ₹${materials.activePigmentRateInrPerKg}/kg]
+5. MINERAL FILLER  : ${scaledFillerKg > 0 ? `${scaledFillerKg.toFixed(2)} KG (@ ₹${materials.activeFillerRateInrPerKg}/kg)` : 'N/A'} [${config.fillerType ?? 'None'}]
+6. STYRENE DILUENT : ${scaledStyreneGrams.toFixed(1)} g [@ ${materials.styreneDiluentPercent}% PHR • ₹${materials.activeStyreneRateInrPerKg}/kg]
+7. UV STABILIZER   : ${scaledUvGrams.toFixed(1)} g [@ ${materials.uvStabilizerPercent}% PHR • ₹${materials.activeUvRateInrPerKg}/kg]
 ------------------------------------------------
 TOTAL LIQUID RESIN MIXTURE MASS : ${totalLiquidBatchKg.toFixed(2)} KG
-GLASS FIBER REINFORCEMENT MASS  : ${scaledGlassKg.toFixed(2)} KG (${config.fiberType})
+GLASS FIBER REINFORCEMENT MASS  : ${scaledGlassKg.toFixed(2)} KG (${materials.plySummaryText || config.fiberType} @ ₹${materials.activeGlassRateInrPerKg}/kg)
+${(materials.polymerMeshWeightKg || 0) > 0 ? `POLYMER MESH REINFORCEMENT      : ${((materials.polymerMeshWeightKg || 0) * scaleFactor).toFixed(2)} KG (@ ₹${materials.activePolymerMeshRateInrPerKg}/kg)\n` : ''}${(materials.printedClothWeightKg || 0) > 0 ? `PRINTED CLOTHES LAYER           : ${((materials.printedClothWeightKg || 0) * scaleFactor).toFixed(2)} KG (@ ₹${materials.activePrintedClothRateInrPerKg}/kg)\n` : ''}MYLAR CARRIER FILM (1st + TOP)  : ${((materials.totalMylarWeightKg || 0) * scaleFactor).toFixed(3)} KG [1st ${materials.mylarBottomThicknessUm}µm @ ₹${materials.activeBottomMylarRateInrPerKg}/kg + Top ${materials.mylarTopThicknessUm}µm @ ₹${materials.activeTopMylarRateInrPerKg}/kg]
 TOTAL FINISHED COMPOSITE MASS   : ${scaledTotalCompositeKg.toFixed(2)} KG
 ------------------------------------------------
 PROCESS CONTROL & POT LIFE:
@@ -247,9 +273,12 @@ BIS & COMMERCIAL COST SUMMARY (IN RUPEES):
 ------------------------------------------------
 STATUTORY STD : BIS IS 12866:2020 / IS 6746
 EX-FACTORY    : ₹${Math.round(receiptData.estimatedCostInr).toLocaleString('en-IN')} INR
+RATE / KG     : ₹${materials.pricePerKgInr} / kg (Ex-Factory)
 RATE / SQ.FT  : ₹${materials.pricePerSqFtInr} / sq.ft
+RATE / SQ.M   : ₹${materials.pricePerM2Inr} / m²
+LABOR RATE    : ₹${materials.activeLaborRateInrPerKg} / kg (${materials.activeLaborTierLabel})
 18% GST (3920): ₹${Math.round(receiptData.gstAmountInr).toLocaleString('en-IN')} INR
-TOTAL W/ GST  : ₹${Math.round(receiptData.totalCostWithGstInr).toLocaleString('en-IN')} INR
+TOTAL W/ GST  : ₹${Math.round(receiptData.totalCostWithGstInr).toLocaleString('en-IN')} INR (₹${totalPerKgWithGst} / kg)
 ------------------------------------------------
 MIXER SIGN     : _______________________
 QC INSPECTOR   : _______________________
@@ -340,9 +369,22 @@ QC INSPECTOR   : _______________________
                 </div>
               </div>
 
-              {/* Batch Scale Preset */}
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-mono text-slate-400">Target Resin Batch Scale:</label>
+              {/* Batch Scale Preset + Custom Input */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-mono text-slate-400">Target Resin Batch Scale:</label>
+                  <div className="flex items-center gap-1 font-mono text-[10px]">
+                    <EditableNumberInput
+                      value={batchScaleKg}
+                      onChange={(val) => setBatchScaleKg(val)}
+                      min={0}
+                      max={10000}
+                      step={5}
+                      className="w-16 bg-slate-900 border border-amber-500/40 rounded px-1.5 py-0.5 text-right text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
+                    />
+                    <span className="text-slate-400">kg (0=Sheet)</span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-1.5 font-mono text-xs">
                   {[
                     { label: 'Single Sheet', kg: 0 },
@@ -393,19 +435,23 @@ QC INSPECTOR   : _______________________
             {/* Quick Dosing Summary Card */}
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col gap-2 font-mono text-xs">
               <span className="text-[10px] uppercase text-slate-400 font-bold flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" /> Key Dosing Metrics
+                <Sparkles className="w-3 h-3 text-amber-400" /> Key Dosing & ₹/kg Metrics
               </span>
               <div className="flex justify-between border-b border-slate-900 pb-1">
                 <span className="text-slate-400">MEKP Catalyst:</span>
-                <strong className="text-amber-300">{scaledMekpMl.toFixed(1)} mL</strong>
+                <strong className="text-amber-300">{scaledMekpMl.toFixed(1)} mL (₹{materials.activeCatalystRateInrPerKg}/kg)</strong>
               </div>
               <div className="flex justify-between border-b border-slate-900 pb-1">
                 <span className="text-slate-400">Cobalt Promoter:</span>
-                <strong className="text-amber-300">{scaledCobaltMl.toFixed(1)} mL</strong>
+                <strong className="text-amber-300">{scaledCobaltMl.toFixed(1)} mL (₹{materials.activeCobaltRateInrPerKg}/kg)</strong>
               </div>
               <div className="flex justify-between border-b border-slate-900 pb-1">
                 <span className="text-slate-400">Resin Matrix:</span>
-                <strong className="text-cyan-300">{scaledResinKg.toFixed(2)} kg</strong>
+                <strong className="text-cyan-300">{scaledResinKg.toFixed(2)} kg (₹{materials.activeResinRateInrPerKg}/kg)</strong>
+              </div>
+              <div className="flex justify-between border-b border-slate-900 pb-1">
+                <span className="text-slate-400">Sheet Rate / Kg:</span>
+                <strong className="text-emerald-400">₹{materials.pricePerKgInr} / kg</strong>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Pot Life Gel:</span>
@@ -554,45 +600,45 @@ QC INSPECTOR   : _______________________
               {/* Chemical Recipe Breakdown Table */}
               <div className="border-b border-dashed border-slate-800 pb-2 mb-2">
                 <div className="font-bold uppercase text-[10px] border-b border-slate-800 pb-1 mb-1 flex justify-between">
-                  <span>COMPONENT</span>
+                  <span>COMPONENT (₹/KG)</span>
                   <span>QTY / DOSING</span>
                 </div>
 
                 <div className="space-y-1 text-[10px]">
                   <div className="flex justify-between font-bold">
-                    <span>1. RESIN MATRIX</span>
+                    <span>1. RESIN (@₹{materials.activeResinRateInrPerKg}/kg)</span>
                     <span>{scaledResinKg.toFixed(2)} KG</span>
                   </div>
 
                   <div className="flex justify-between">
-                    <span>2. MEKP CATALYST ({config.catalystPercent}%)</span>
+                    <span>2. MEKP ({config.catalystPercent}% • ₹{materials.activeCatalystRateInrPerKg}/kg)</span>
                     <span>{scaledMekpMl.toFixed(1)} mL ({scaledMekpGrams.toFixed(1)}g)</span>
                   </div>
 
                   <div className="flex justify-between">
-                    <span>3. COBALT PROMOTER ({(config.cobaltPercent ?? 0.2)}%)</span>
+                    <span>3. COBALT ({(config.cobaltPercent ?? 0.2)}% • ₹{materials.activeCobaltRateInrPerKg}/kg)</span>
                     <span>{scaledCobaltMl.toFixed(1)} mL ({scaledCobaltGrams.toFixed(1)}g)</span>
                   </div>
 
                   <div className="flex justify-between">
-                    <span>4. PIGMENT PASTE ({materials.pigmentPercent}%)</span>
+                    <span>4. PIGMENT ({materials.pigmentPercent}% • ₹{materials.activePigmentRateInrPerKg}/kg)</span>
                     <span>{scaledPigmentGrams.toFixed(1)} g</span>
                   </div>
 
                   {scaledFillerGrams > 0 && (
                     <div className="flex justify-between">
-                      <span>5. FILLER ({config.fillerType})</span>
+                      <span>5. FILLER ({config.fillerType} • ₹{materials.activeFillerRateInrPerKg}/kg)</span>
                       <span>{scaledFillerKg.toFixed(2)} KG ({scaledFillerGrams.toFixed(0)}g)</span>
                     </div>
                   )}
 
                   <div className="flex justify-between">
-                    <span>6. STYRENE DILUENT ({materials.styreneDiluentPercent}% PHR)</span>
+                    <span>6. STYRENE ({materials.styreneDiluentPercent}% • ₹{materials.activeStyreneRateInrPerKg}/kg)</span>
                     <span>{scaledStyreneGrams.toFixed(1)} g</span>
                   </div>
 
                   <div className="flex justify-between">
-                    <span>7. UV STABILIZER ({materials.uvStabilizerPercent}% PHR)</span>
+                    <span>7. UV STAB. ({materials.uvStabilizerPercent}% • ₹{materials.activeUvRateInrPerKg}/kg)</span>
                     <span>{scaledUvGrams.toFixed(1)} g</span>
                   </div>
                 </div>
@@ -605,8 +651,24 @@ QC INSPECTOR   : _______________________
                   <span>{totalLiquidBatchKg.toFixed(2)} KG</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>GLASS FIBER ({config.fiberType}):</span>
+                  <span>GLASS ({config.fiberType} @₹{materials.activeGlassRateInrPerKg}/kg):</span>
                   <span>{scaledGlassKg.toFixed(2)} KG</span>
+                </div>
+                {(materials.polymerMeshWeightKg || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>POLYMER MESH (@₹{materials.activePolymerMeshRateInrPerKg}/kg):</span>
+                    <span>{((materials.polymerMeshWeightKg || 0) * scaleFactor).toFixed(2)} KG</span>
+                  </div>
+                )}
+                {(materials.printedClothWeightKg || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>PRINTED CLOTH (@₹{materials.activePrintedClothRateInrPerKg}/kg):</span>
+                    <span>{((materials.printedClothWeightKg || 0) * scaleFactor).toFixed(2)} KG</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-[9px] text-slate-700">
+                  <span>MYLAR 1st({materials.mylarBottomThicknessUm}µm @₹{materials.activeBottomMylarRateInrPerKg}/kg) Top({materials.mylarTopThicknessUm}µm @₹{materials.activeTopMylarRateInrPerKg}/kg):</span>
+                  <span>{((materials.totalMylarWeightKg || 0) * scaleFactor).toFixed(3)} KG</span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>TOTAL COMPOSITE MASS:</span>
@@ -638,9 +700,21 @@ QC INSPECTOR   : _______________________
                   <span>EX-FACTORY VALUE:</span>
                   <span>₹{Math.round(materials.estimatedCostInr * scaleFactor).toLocaleString('en-IN')}</span>
                 </div>
+                <div className="flex justify-between font-bold bg-slate-100 px-1 py-0.5 rounded">
+                  <span>RATE / KG (EX-FACT):</span>
+                  <span>₹{materials.pricePerKgInr} / kg</span>
+                </div>
                 <div className="flex justify-between">
                   <span>RATE / SQ.FT:</span>
                   <span>₹{materials.pricePerSqFtInr} / sq.ft</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>RATE / SQ.M:</span>
+                  <span>₹{materials.pricePerM2Inr} / m²</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>INSTALL LABOR RATE:</span>
+                  <span>₹{materials.activeLaborRateInrPerKg} / kg</span>
                 </div>
                 <div className="flex justify-between">
                   <span>18% GST TAX:</span>
@@ -648,7 +722,9 @@ QC INSPECTOR   : _______________________
                 </div>
                 <div className="flex justify-between font-bold text-xs pt-0.5">
                   <span>TOTAL INCL. GST:</span>
-                  <span>₹{Math.round(materials.totalCostWithGstInr * scaleFactor).toLocaleString('en-IN')}</span>
+                  <span>
+                    ₹{Math.round(materials.totalCostWithGstInr * scaleFactor).toLocaleString('en-IN')} (₹{Math.round((materials.totalCostWithGstInr * scaleFactor) / Math.max(0.01, scaledTotalCompositeKg))}/kg)
+                  </span>
                 </div>
               </div>
 

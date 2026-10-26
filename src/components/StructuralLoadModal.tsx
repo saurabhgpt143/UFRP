@@ -31,6 +31,7 @@ import {
   PurlinSpanLoadPoint
 } from '../types';
 import { evaluateCustomSpanAndLoad, evaluateBoxBaseCalculation } from '../utils/frpCalculations';
+import { EditableNumberInput } from './EditableNumberInput';
 
 interface StructuralLoadModalProps {
   isOpen: boolean;
@@ -317,13 +318,23 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-900/90 p-3 rounded-xl border border-slate-800">
               {/* Span Selector */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1.5">
                   <label className="text-[10px] uppercase font-mono font-bold text-slate-400">
                     Purlin Span (L)
                   </label>
-                  <span className="text-xs font-bold text-cyan-300 font-mono">
-                    {selectedSpanMm} mm ({(selectedSpanMm / 304.8).toFixed(1)} ft)
-                  </span>
+                  <div className="flex items-center gap-1 font-mono text-xs">
+                    <EditableNumberInput
+                      value={selectedSpanMm}
+                      onChange={(val) => setSelectedSpanMm(val)}
+                      min={100}
+                      max={6000}
+                      step={50}
+                      className="w-16 bg-slate-950 border border-cyan-500/40 rounded px-1.5 py-0.5 text-right text-xs text-cyan-300 font-mono font-bold focus:outline-none focus:border-cyan-400"
+                    />
+                    <span className="text-[10px] text-cyan-300 font-bold">
+                      mm ({(selectedSpanMm / 304.8).toFixed(1)}ft)
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -344,13 +355,23 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
 
               {/* Applied Load Selector */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1.5">
                   <label className="text-[10px] uppercase font-mono font-bold text-slate-400">
                     Applied Load (w)
                   </label>
-                  <span className="text-xs font-bold text-amber-300 font-mono">
-                    {appliedLoadKgM2} kg/m² ({(appliedLoadKgM2 * 0.00980665).toFixed(2)} kN/m²)
-                  </span>
+                  <div className="flex items-center gap-1 font-mono text-xs">
+                    <EditableNumberInput
+                      value={appliedLoadKgM2}
+                      onChange={(val) => setAppliedLoadKgM2(val)}
+                      min={5}
+                      max={2000}
+                      step={5}
+                      className="w-14 bg-slate-950 border border-amber-500/40 rounded px-1.5 py-0.5 text-right text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
+                    />
+                    <span className="text-[10px] text-amber-300 font-bold">
+                      kg/m²
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -880,9 +901,19 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Box Width (B):</span>
-                  <span className="font-mono font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    {boxWidthMm} mm ({(boxWidthMm / 25.4).toFixed(1)} in)
-                  </span>
+                  <div className="flex items-center gap-1 font-mono">
+                    <EditableNumberInput
+                      value={boxWidthMm}
+                      onChange={(val) => setBoxWidthMm(val)}
+                      min={50}
+                      max={5000}
+                      step={10}
+                      className="w-16 bg-slate-900 border border-emerald-500/40 rounded px-1.5 py-0.5 text-right text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-400"
+                    />
+                    <span className="text-[11px] font-bold text-emerald-300">
+                      mm ({(boxWidthMm / 25.4).toFixed(1)} in)
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -899,9 +930,19 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Box Length (L):</span>
-                  <span className="font-mono font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    {boxLengthMm} mm ({(boxLengthMm / 25.4).toFixed(1)} in)
-                  </span>
+                  <div className="flex items-center gap-1 font-mono">
+                    <EditableNumberInput
+                      value={boxLengthMm}
+                      onChange={(val) => setBoxLengthMm(val)}
+                      min={50}
+                      max={6000}
+                      step={10}
+                      className="w-16 bg-slate-900 border border-emerald-500/40 rounded px-1.5 py-0.5 text-right text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-400"
+                    />
+                    <span className="text-[11px] font-bold text-emerald-300">
+                      mm ({(boxLengthMm / 25.4).toFixed(1)} in)
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -918,9 +959,19 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
               <div className="space-y-1">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Target Payload Weight:</span>
-                  <span className="font-mono font-bold text-amber-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    {boxPayloadKg} kg ({(boxPayloadKg * 2.20462).toFixed(0)} lbs)
-                  </span>
+                  <div className="flex items-center gap-1 font-mono">
+                    <EditableNumberInput
+                      value={boxPayloadKg}
+                      onChange={(val) => setBoxPayloadKg(val)}
+                      min={1}
+                      max={5000}
+                      step={5}
+                      className="w-16 bg-slate-900 border border-amber-500/40 rounded px-1.5 py-0.5 text-right text-xs text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400"
+                    />
+                    <span className="text-[11px] font-bold text-amber-300">
+                      kg ({(boxPayloadKg * 2.20462).toFixed(0)} lbs)
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="range"
@@ -935,7 +986,20 @@ export const StructuralLoadModal: React.FC<StructuralLoadModalProps> = ({
 
               {/* Base Sheet Thickness Selection */}
               <div className="space-y-1.5 pt-1">
-                <span className="text-slate-400 text-[11px] block">Test Sheet Thickness:</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px]">Test Sheet Thickness:</span>
+                  <div className="flex items-center gap-1 font-mono">
+                    <EditableNumberInput
+                      value={boxThicknessMm}
+                      onChange={(val) => setBoxThicknessMm(val)}
+                      min={0.5}
+                      max={25}
+                      step={0.1}
+                      className="w-16 bg-slate-900 border border-blue-500/40 rounded px-1.5 py-0.5 text-right text-xs text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-400"
+                    />
+                    <span className="text-[11px] font-bold text-blue-300">mm</span>
+                  </div>
+                </div>
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 font-mono">
                   {[1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0].map((t) => (
                     <button
