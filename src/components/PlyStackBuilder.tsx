@@ -264,7 +264,7 @@ export const PlyStackBuilder: React.FC<PlyStackBuilderProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-1">
           {[
             { type: 'polymer_mesh' as GlassFiberType, label: '+ Polymer Mesh 5g', style: 'border-teal-500/50 text-teal-300 hover:bg-teal-950/60 bg-teal-950/20' },
-            { type: 'printed_cloth' as GlassFiberType, label: '+ Printed Cloth 15g', style: 'border-pink-500/50 text-pink-300 hover:bg-pink-950/60 bg-pink-950/20' },
+            { type: 'printed_cloth' as GlassFiberType, label: '+ Printed Cloth 50g', style: 'border-pink-500/50 text-pink-300 hover:bg-pink-950/60 bg-pink-950/20' },
             { type: 'surface_veil_30' as GlassFiberType, label: '+ Veil 30g', style: 'border-cyan-500/40 text-cyan-300 hover:bg-cyan-950/60 bg-slate-900' },
             { type: 'csm_225' as GlassFiberType, label: '+ CSM 225g', style: 'border-blue-500/40 text-blue-300 hover:bg-blue-950/60 bg-slate-900' },
             { type: 'csm_300' as GlassFiberType, label: '+ CSM 300g', style: 'border-blue-500/40 text-blue-300 hover:bg-blue-950/60 bg-slate-900' },
@@ -377,7 +377,7 @@ export const PlyStackBuilder: React.FC<PlyStackBuilderProps> = ({
                 applyPlySchedule(
                   [
                     { id: 'p1', fiberType: 'surface_veil_30', customGsm: 30 },
-                    { id: 'p2', fiberType: 'printed_cloth', customGsm: 15 },
+                    { id: 'p2', fiberType: 'printed_cloth', customGsm: 50 },
                     { id: 'p3', fiberType: 'csm_450', customGsm: 450 },
                     { id: 'p4', fiberType: 'csm_450', customGsm: 450 },
                   ],
@@ -386,8 +386,8 @@ export const PlyStackBuilder: React.FC<PlyStackBuilderProps> = ({
               }
               className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-pink-500/40 text-left flex flex-col gap-0.5 cursor-pointer"
             >
-              <span className="font-bold text-pink-300">Decorative Printed Cloth: Veil + Printed 15g + 2× CSM</span>
-              <span className="text-[9px] text-slate-400">945 GSM • Designer Printed FRP Door / Sheet</span>
+              <span className="font-bold text-pink-300">Decorative Printed Cloth: Veil + Printed 50g + 2× CSM</span>
+              <span className="text-[9px] text-slate-400">980 GSM • Designer Printed FRP Door / Sheet</span>
             </button>
 
             <button

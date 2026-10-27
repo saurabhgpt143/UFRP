@@ -346,7 +346,7 @@ export const RateAdjustmentModal: React.FC<RateAdjustmentModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-pink-300 flex items-center gap-1.5">
                     <Palette className="w-3.5 h-3.5 text-pink-400" />
-                    Printed Clothes (15 GSM) Rate (₹/kg)
+                    Printed Clothes (50 GSM) Rate (₹/kg)
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">
                     Used: {materials.printedClothWeightGrams.toFixed(1)}g ({materials.printedClothWeightKg.toFixed(3)} kg) = <strong className="text-white">₹{materials.printedClothCostInr}</strong>
@@ -379,7 +379,7 @@ export const RateAdjustmentModal: React.FC<RateAdjustmentModalProps> = ({
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono">
-                  Decorative printed clothes / designer fabric interlayer (15 gsm • Default: ₹480/kg)
+                  Decorative printed clothes / designer fabric interlayer (50 gsm • Default: ₹480/kg)
                 </p>
               </div>
 
